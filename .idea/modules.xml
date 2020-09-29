@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/app.iml" group="src_Mavid_(0.4.2)_IR_changes_with_suma_fixes/app" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/libresdk/libresdk.iml" filepath="$PROJECT_DIR$/.idea/modules/libresdk/libresdk.iml" group="src_Mavid_(0.4.2)_IR_changes_with_suma_fixes/libresdk" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/src_Mavid_(0.4.2)_IR_changes_with_suma_fixes.iml" filepath="$PROJECT_DIR$/.idea/modules/src_Mavid_(0.4.2)_IR_changes_with_suma_fixes.iml" group="src_Mavid_(0.4.2)_IR_changes_with_suma_fixes" />
+    </modules>
+  </component>
+</project>
