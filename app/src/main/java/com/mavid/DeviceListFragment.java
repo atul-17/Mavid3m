@@ -1,7 +1,6 @@
 package com.mavid;
 
 import android.app.Dialog;
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -34,7 +33,6 @@ import com.android.volley.ParseError;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
-import com.android.volley.RetryPolicy;
 import com.android.volley.ServerError;
 import com.android.volley.TimeoutError;
 import com.android.volley.VolleyError;
@@ -46,9 +44,8 @@ import com.mavid.adapters.DeviceListAdapter;
 import com.mavid.BLEApproach.BLEBlinkingFragment;
 import com.mavid.irActivites.IRAddRemoteVPActivity;
 import com.mavid.irActivites.IRRestoreSelectionActivity;
-import com.mavid.models.ModelGetUserDetailsAppliance;
-import com.mavid.models.ModelGetUserDetailsBodySucess;
 import com.mavid.models.ModelRemoteDetails;
+import com.mavid.models.ModelRemoteSubAndMacDetils;
 import com.mavid.utility.FirmwareClasses.CheckFirmwareInfoClass;
 import com.mavid.utility.FirmwareClasses.DownloadMyXmlListener;
 import com.mavid.utility.FirmwareClasses.FirmwareUpdateHashmap;
@@ -66,8 +63,10 @@ import com.mavid.libresdk.TaskManager.Discovery.CustomExceptions.WrongStepCallEx
 import com.mavid.libresdk.Util.LibreLogger;
 import com.mavid.utility.OnButtonClickCallback;
 import com.mavid.utility.OnButtonClickListViewInterface;
+import com.mavid.utility.OnGetUserApplianceUserInfoInterface;
 import com.mavid.utility.UIRelatedClass;
 
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -111,6 +110,8 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
     Gson gson = new Gson();
 
     private Dialog mDialog;
+
+    ModelRemoteSubAndMacDetils modelRemoteSubAndMacDetils = new ModelRemoteSubAndMacDetils();
 
     @Nullable
     @Override
@@ -857,7 +858,15 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
                  * "No"
                  * */
                 getUserApplianceInfoDetails(getActivity()
-                        .getSharedPreferences("Mavid", Context.MODE_PRIVATE).getString("sub", ""), deviceInfo, UuidStatus);
+                        .getSharedPreferences("Mavid", Context.MODE_PRIVATE).getString("sub", ""), deviceInfo, new OnGetUserApplianceUserInfoInterface() {
+                    @Override
+                    public void onApiResponseCallback(@NotNull DeviceInfo deviceInfo, @NotNull String bodyObject) {
+                        //UUID is empty
+                        closeLoader();
+                        //data is present
+                        gotoRestoreSelectionActivity(deviceInfo, bodyObject);
+                    }
+                });
                 break;
 
             case 2:
@@ -886,111 +895,273 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
                  * Read the appliance info and check
                  * if the appliances match with the one
                  * present in the app
-                 * only in uuid_status = 2 we get
-                 * appliance json array
                  * */
 
-                checkIfThereIsApplianceMismatchWithDevice(applianceJsonArray, deviceInfo, UuidStatus);
+                checkIfThereIsApplianceMismatchWithDevice(applianceJsonArray, deviceInfo);
+
+
                 break;
         }
     }
 
 
-    private void checkIfThereIsApplianceMismatchWithDevice(JSONArray applianceJsonArray, DeviceInfo deviceInfo, int UuidStatus) {
-        boolean isTVDetailsMatching = false;
-        boolean isTVPDetailsMatching = false;
-        for (int i = 0; i < applianceJsonArray.length(); i++) {
+    private List<ModelRemoteDetails> addAppAppliancesDataToList(String macId) {
+
+        List<ModelRemoteDetails> appliancesList = new ArrayList<>();
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("Mavid", Context.MODE_PRIVATE);
+
+        Gson gson = new Gson();
+
+        String modelRemoteDetailsString = sharedPreferences.getString("applianceInfoList", "");
+
+        if (!modelRemoteDetailsString.isEmpty()) {
+
+            modelRemoteSubAndMacDetils = new ModelRemoteSubAndMacDetils();
+
+
+            modelRemoteSubAndMacDetils = gson.fromJson(modelRemoteDetailsString, ModelRemoteSubAndMacDetils.class);
+
+            if (modelRemoteSubAndMacDetils.getMac().equals(macId)) {
+                if (modelRemoteSubAndMacDetils.getModelRemoteDetailsList() != null) {
+                    if (modelRemoteSubAndMacDetils.getModelRemoteDetailsList().size() > 0) {
+                        appliancesList = modelRemoteSubAndMacDetils.getModelRemoteDetailsList();
+                    }
+                }
+            }
+        }
+
+        return appliancesList;
+    }
+
+    private List<ModelRemoteDetails> addDeviceApplianceInfoToAList(JSONArray deviceApplianceJsonArray) {
+        List<ModelRemoteDetails> mavidDeviceAppliancesList = new ArrayList();
+        for (int i = 0; i < deviceApplianceJsonArray.length(); i++) {
+            ModelRemoteDetails modelRemoteDetails = new ModelRemoteDetails();
+
             try {
-                JSONObject applianceJsonObject = (JSONObject) applianceJsonArray.get(i);
-                int applianceType = applianceJsonObject.getInt("appliance");
-                int brandId = applianceJsonObject.getInt("bId");
+                JSONObject applianceJsonObject = (JSONObject) deviceApplianceJsonArray.get(i);
 
-                int remoteId = applianceJsonObject.getInt("rId");
+                modelRemoteDetails.setSelectedAppliance(String.valueOf(applianceJsonObject.getInt("appliance")));
 
-                switch (applianceType) {
-                    case 1:
-                        //tv
-                        Log.d(TAG, "tvApplianceInfoStoredInDevice: " + applianceJsonObject);
-                        isTVDetailsMatching = checkIfTvDetailsMatchesWithTheOneStoredInApp(String.valueOf(brandId), String.valueOf(remoteId));
+                modelRemoteDetails.setSelectedBrandName(applianceJsonObject.getString("bName"));
 
-                        break;
-                    case 2:
-                        //tvp
-                        isTVPDetailsMatching = checkIfTVPDetailsMatchesWithOneStoredInApp(String.valueOf(brandId), String.valueOf(remoteId));
+                String brandName = modelRemoteDetails.getSelectedBrandName();
 
-                        break;
-                    case 3:
-                        //ac
-                        break;
+                modelRemoteDetails.setSelectedBrandName(brandName.replaceAll(",$", ""));
+
+
+                modelRemoteDetails.setRemoteId(String.valueOf(applianceJsonObject.getInt("rId")));
+
+                modelRemoteDetails.setGroupId(applianceJsonObject.getInt("group"));
+
+
+                modelRemoteDetails.setGroupdName("Scene1");
+
+                if (modelRemoteDetails.getSelectedAppliance().equals("1") || modelRemoteDetails.getSelectedAppliance().equals("TV")) {
+                    modelRemoteDetails.setCustomName("TV");
+                } else if (modelRemoteDetails.getSelectedAppliance().equals("2") || modelRemoteDetails.getSelectedAppliance().equals("TVP")) {
+                    modelRemoteDetails.setCustomName("My Box");
                 }
 
+                modelRemoteDetails.setBrandId(String.valueOf(applianceJsonObject.getInt("bId")));
+
+                mavidDeviceAppliancesList.add(modelRemoteDetails);
             } catch (JSONException e) {
                 e.printStackTrace();
             }
         }
+        return mavidDeviceAppliancesList;
+    }
 
-        if (!isTVDetailsMatching || !isTVPDetailsMatching) {
-            /** If tv or tvp details do not match with the one which app has
-             * then call the GET lcapi3
-             * */
-            //call the GET lcapi3
+
+    private void deleteTvORTvpDetailsInSharedPref(String macId) {
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("Mavid", Context.MODE_PRIVATE);
+
+        Gson gson = new Gson();
+
+        String modelRemoteDetailsString = sharedPreferences.getString("applianceInfoList", "");
+
+        if (!modelRemoteDetailsString.isEmpty()) {
+            //if data is present
+            modelRemoteSubAndMacDetils = new ModelRemoteSubAndMacDetils();
+
+            modelRemoteSubAndMacDetils = gson.fromJson(modelRemoteDetailsString, ModelRemoteSubAndMacDetils.class);
+
+            if (modelRemoteSubAndMacDetils.getMac().equals(macId)) {
+                //removing all the appliances present for that mavid device
+                Log.d(TAG,"deletedAllDataFromSharedPref");
+                modelRemoteSubAndMacDetils.getModelRemoteDetailsList().removeAll(modelRemoteSubAndMacDetils.getModelRemoteDetailsList());
+            }
+        }
+        //saving the details
+        modelRemoteDetailsString = gson.toJson(modelRemoteSubAndMacDetils);
+
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+
+        editor.putString("applianceInfoList", modelRemoteDetailsString);
+        editor.apply();
+    }
+
+
+    private void checkIfThereIsApplianceMismatchWithDevice(final JSONArray deviceApplianceJsonArray, DeviceInfo deviceInfo) {
+
+        //if the device data and  app data is not present
+        ///TODO:call get api and  check if that is also empty
+        //then goto the vp tabs
+        if (deviceApplianceJsonArray.length() == 0 && checkIfAppDataIsEmpty(deviceInfo.getUSN())) {
+
             getUserApplianceInfoDetails(getActivity()
-                    .getSharedPreferences("Mavid", Context.MODE_PRIVATE).getString("sub", ""), deviceInfo, UuidStatus);
+                    .getSharedPreferences("Mavid", Context.MODE_PRIVATE).getString("sub", ""), deviceInfo, new OnGetUserApplianceUserInfoInterface() {
+                @Override
+                public void onApiResponseCallback(@NotNull DeviceInfo deviceInfo, @NotNull String bodyObject) {
+                    //if there is data in the cloud
+                    //goto to restore selection activity
+                    gotoRestoreSelectionActivity(deviceInfo, bodyObject);
+                }
+            });
+            Log.d(TAG, "bothDeviceAndAppDataIsEmpty");
         } else {
-            //if it matches with one stored in the app
-            //then goto tabs activity
-            gotoIRAddRemoteVPActivity(deviceInfo);
+
+            List<ModelRemoteDetails> deviceApplianceInfoList = addDeviceApplianceInfoToAList(deviceApplianceJsonArray);
+
+            List<ModelRemoteDetails> appDeviceApplianceInfoList = addAppAppliancesDataToList(deviceInfo.getUSN());
+
+            //if the mavid device and app data list size are smae
+            if (deviceApplianceInfoList.size() == appDeviceApplianceInfoList.size()) {
+                //compare the data objects of mavidData and appData
+                boolean isMatching = commpareMavidDeviceDataAndAppData(deviceApplianceInfoList, appDeviceApplianceInfoList);
+                if (isMatching) {
+                    //goto vp activity
+                    gotoIRAddRemoteVPActivity(deviceInfo);
+                } else {
+                    //if it is not matching
+                    //call the get api and update the data of the app
+                    getUserApplianceInfoDetails(getActivity()
+                                    .getSharedPreferences("Mavid", Context.MODE_PRIVATE).getString("sub", ""),
+                            deviceInfo, new OnGetUserApplianceUserInfoInterface() {
+                                @Override
+                                public void onApiResponseCallback(@NotNull DeviceInfo deviceInfo, @NotNull String bodyObject) {
+                                    try {
+                                        JSONObject bodyJsonObject = new JSONObject(bodyObject);
+
+                                        JSONArray applianceJsonArray = bodyJsonObject.optJSONArray("Appliance");
+
+                                        //deleteAll the data present in the app
+                                        deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
+
+                                        for (int i = 0; i < applianceJsonArray.length(); i++) {
+                                            /**
+                                             * 1)remove the old data present in the app
+                                             * 2)updating the tv or tvp details
+                                             * */
+
+                                            ModelRemoteDetails modelRemoteDetails = parseApplianceJsonObject((JSONObject) applianceJsonArray.get(i));
+
+                                            //update the cloud data to the app
+                                            updateApplianceInfoInSharedPref(modelRemoteDetails, deviceInfo.getUSN());
+                                        }
+                                    } catch (JSONException e) {
+                                        e.printStackTrace();
+                                    }
+                                    gotoIRAddRemoteVPActivity(deviceInfo);
+                                }
+                            });
+                }
+            }
+            /**
+             * 1) device factory reset has happened
+             * or
+             * 2) user has unintsalled the app
+             * or
+             * 3) another user has installed the same app
+             *    and moddified the contents of the device
+             *
+             * */
+            else if (deviceApplianceInfoList.size() == 0 && appDeviceApplianceInfoList.size() > 0) {
+                //device reset or user has modfied the data in another phone
+                getUserApplianceInfoDetails(getActivity()
+                        .getSharedPreferences("Mavid", Context.MODE_PRIVATE).getString("sub", ""), deviceInfo, new OnGetUserApplianceUserInfoInterface() {
+                    @Override
+                    public void onApiResponseCallback(@NotNull DeviceInfo deviceInfo, @NotNull String bodyObject) {
+                        //there is data in the cloud
+                        //but no data in mavid
+                        //and there is data in app
+                        //goto restore selectionActivity
+                        gotoRestoreSelectionActivity(deviceInfo, bodyObject);
+                    }
+                });
+            } else {
+                //app has no data and mavid device has data
+                //it is the case  of appUninstall or
+                //modified app data in another app
+
+                getUserApplianceInfoDetails(getActivity()
+                        .getSharedPreferences("Mavid", Context.MODE_PRIVATE).getString("sub", ""), deviceInfo, new OnGetUserApplianceUserInfoInterface() {
+                    @Override
+                    public void onApiResponseCallback(@NotNull DeviceInfo deviceInfo, @NotNull String bodyObject) {
+                        try {
+                            JSONObject bodyJsonObject = new JSONObject(bodyObject);
+
+                            JSONArray applianceJsonArray = bodyJsonObject.optJSONArray("Appliance");
+
+                            deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
+
+                            for (int i = 0; i < applianceJsonArray.length(); i++) {
+                                /**
+                                 * 1)remove the old data present in the app
+                                 * 2)updating the tv or tvp details
+                                 * */
+                                ModelRemoteDetails modelRemoteDetails = parseApplianceJsonObject((JSONObject) applianceJsonArray.get(i));
+                                updateApplianceInfoInSharedPref(modelRemoteDetails, deviceInfo.getUSN());
+                            }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                        gotoIRAddRemoteVPActivity(deviceInfo);
+                    }
+                });
+            }
         }
     }
 
-    private boolean checkIfTVPDetailsMatchesWithOneStoredInApp(String brandId, String remoteId) {
-        String modelTVPRemoteDetailsString = getActivity().getSharedPreferences("Mavid", Context.MODE_PRIVATE)
-                .getString("tvpRemoteDetails", "");
-
-        if (!modelTVPRemoteDetailsString.isEmpty()) {
-
-            ModelRemoteDetails tvpRemoteDetails = new ModelRemoteDetails();
-
-            tvpRemoteDetails = gson.fromJson(modelTVPRemoteDetailsString, ModelRemoteDetails.class);
-
-            if (!tvpRemoteDetails.getBrandId().equals(String.valueOf(brandId))
-                    && !tvpRemoteDetails.getRemoteId().equals(String.valueOf(remoteId))) {
-                //if the brandId and remote are not equal
-                //to the one which the app has stored
-                return false;
+    private boolean commpareMavidDeviceDataAndAppData(List<ModelRemoteDetails> mavidApplianceInfoList, List<ModelRemoteDetails> appApplianceInfoList) {
+        for (ModelRemoteDetails mavidApplianceInfoObject : mavidApplianceInfoList) {
+            for (ModelRemoteDetails appApplianceObject : appApplianceInfoList) {
+                if (mavidApplianceInfoObject.getBrandId()
+                        .equals(appApplianceObject.getBrandId()) &&
+                        mavidApplianceInfoObject.getRemoteId().equals(appApplianceObject.getRemoteId())) {
+                    return true;
+                }
             }
-        } else {
-            //because there is no tvp data present
-            //in the app
-            return false;
+        }
+        return false;
+    }
+
+    private boolean checkIfAppDataIsEmpty(String macId) {
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("Mavid", Context.MODE_PRIVATE);
+
+        Gson gson = new Gson();
+
+        String modelRemoteDetailsString = sharedPreferences.getString("applianceInfoList", "");
+
+        if (!modelRemoteDetailsString.isEmpty()) {
+
+            modelRemoteSubAndMacDetils = new ModelRemoteSubAndMacDetils();
+
+
+            modelRemoteSubAndMacDetils = gson.fromJson(modelRemoteDetailsString, ModelRemoteSubAndMacDetils.class);
+
+            if (modelRemoteSubAndMacDetils.getMac().equals(macId)) {
+                if (modelRemoteSubAndMacDetils.getModelRemoteDetailsList() != null) {
+                    if (modelRemoteSubAndMacDetils.getModelRemoteDetailsList().size() > 0) {
+                        return false;
+                    }
+                }
+            }
         }
         return true;
     }
 
-
-    private boolean checkIfTvDetailsMatchesWithTheOneStoredInApp(String brandId, String remoteId) {
-        String modelTvRemoteDetailsString = getActivity().getSharedPreferences("Mavid", Context.MODE_PRIVATE)
-                .getString("tvRemoteDetails", "");
-        if (!modelTvRemoteDetailsString.isEmpty()) {
-            ModelRemoteDetails tvRemoteDetails = new ModelRemoteDetails();
-
-            tvRemoteDetails = gson.fromJson(modelTvRemoteDetailsString, ModelRemoteDetails.class);
-
-            Log.d(TAG, "tvApplianceInfoInApp: " + tvRemoteDetails);
-
-            if (!tvRemoteDetails.getBrandId().equals(String.valueOf(brandId))
-                    && !tvRemoteDetails.getRemoteId().equals(String.valueOf(remoteId))) {
-                //if the brandId and remote are not equal
-                //to the one which the app has stored
-                return false;
-            }
-        } else {
-            //because there is no tv data present
-            //in the app
-            return false;
-        }
-        return true;
-    }
 
     private ModelRemoteDetails parseApplianceJsonObject(JSONObject applianceObject) {
 
@@ -1000,7 +1171,11 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
             modelRemoteDetails.setSelectedBrandName(applianceObject.getString("BrandName"));
             modelRemoteDetails.setRemoteId(applianceObject.getString("RemoteID"));
             modelRemoteDetails.setBrandId(applianceObject.getString("BrandId"));
-            modelRemoteDetails.setSelectedAppliance(applianceObject.getString("Appliance"));
+            if (applianceObject.get("Appliance").equals("TV")) {
+                modelRemoteDetails.setSelectedAppliance("1");
+            } else if (applianceObject.get("Appliance").equals("TVP")) {
+                modelRemoteDetails.setSelectedAppliance("2");
+            }
             modelRemoteDetails.setCustomName(applianceObject.getString("CustomName"));
 
         } catch (JSONException e) {
@@ -1010,13 +1185,21 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
     }
 
 
-    private void getUserApplianceInfoDetails(String sub, final DeviceInfo deviceInfo, final int uuidStatus) {
+    private void gotoRestoreSelectionActivity(DeviceInfo deviceInfo, String applianceInfo) {
+        closeLoader();
+        Intent intent = new Intent(getActivity(), IRRestoreSelectionActivity.class);
+        Bundle bundle = new Bundle();
+        bundle.putSerializable("deviceInfo", deviceInfo);
+        bundle.putString("applianceInfo", applianceInfo);
+        intent.putExtras(bundle);
+        startActivity(intent);
+    }
+
+    private void getUserApplianceInfoDetails(String sub, final DeviceInfo deviceInfo, final OnGetUserApplianceUserInfoInterface onGetUserApplianceUserInfoInterface) {
         RequestQueue requestQueue = Volley.newRequestQueue(getActivity());
 
-        String baseUrl = "https://op4w1ojeh4.execute-api.us-east-1.amazonaws.com/Beta/usermangement?" + ("sub=") + (sub);
+        String baseUrl = "https://op4w1ojeh4.execute-api.us-east-1.amazonaws.com/Beta/usermangement?" + ("sub=") + (sub) + "&Mac=" + deviceInfo.getUSN();
 
-
-        //+ "Mac=" + deviceInfo.getUSN()
 
         Log.d(TAG, "requestedURl: " + baseUrl);
 
@@ -1028,59 +1211,58 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
                 try {
                     JSONObject responseObject = new JSONObject(response);
 
-                    JSONArray bodyJsonArraay = responseObject.getJSONArray("body");
+                    JSONObject bodyJsonObject = responseObject.optJSONObject("body");
 
-                    if (bodyJsonArraay.length() > 0) {
-                        //there is appliance info data
-                        JSONObject bodyJsonObject = bodyJsonArraay.getJSONObject(0);
-                        if (uuidStatus == 1) {
-                            //UUID is empty
-                            if (bodyJsonObject.has("Appliance")) {
-                                /** cloud has data
-                                 if cloud have data—Factory reset case,
-                                 Call LDAPI#1 and update the device the info one by one
-                                 Take the user to a screen "to restore selection of tv/tvps"
-                                 */
-                                closeLoader();
-                                Intent intent = new Intent(getActivity(), IRRestoreSelectionActivity.class);
-                                Bundle bundle = new Bundle();
-                                bundle.putSerializable("deviceInfo", deviceInfo);
-                                bundle.putString("applianceInfo", String.valueOf(bodyJsonObject));
-                                intent.putExtras(bundle);
-                                startActivity(intent);
-                            }
-                        } else if (uuidStatus == 3) {
-                            if (bodyJsonObject.has("Appliance")) {
-                                JSONObject applianceObject = bodyJsonObject.optJSONObject("Appliance");
-                                if (applianceObject != null) {
-                                    //it is a json object
-                                    ModelRemoteDetails modelRemoteDetails = parseApplianceJsonObject(applianceObject);
-                                    //updating the tv or tvp details
-                                    updateTvORTvpDetailsInSharedPref(modelRemoteDetails, deviceInfo);
-                                } else {
-                                    //it might be an array
-                                    JSONArray applianceJsonArray = bodyJsonObject.optJSONArray("Appliance");
+                    if (bodyJsonObject != null) {
+                        //body key value is a json object
+                        JSONArray applianceJsonArray = bodyJsonObject.optJSONArray("Appliance");
+                        if (applianceJsonArray.length() > 0) {
+                            onGetUserApplianceUserInfoInterface.onApiResponseCallback(deviceInfo, String.valueOf(bodyJsonObject));
+                        } else {
+                            closeLoader();
+                            //if cloud data is also empty—first time user—Go ahead with normal flowr
 
-                                    if (applianceJsonArray != null) {
-                                        for (int i = 0; i < applianceJsonArray.length(); i++) {
-                                            //updating the tv or tvp details
-                                            ModelRemoteDetails modelRemoteDetails = parseApplianceJsonObject((JSONObject) applianceJsonArray.get(i));
-                                            updateTvORTvpDetailsInSharedPref(modelRemoteDetails, deviceInfo);
-                                        }
-                                    }
-                                }
-                                gotoIRAddRemoteVPActivity(deviceInfo);
-                            }
+                            //deleteAll the data present in the app if cloud has no data
+                            deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
+
+                            gotoIRAddRemoteVPActivity(deviceInfo);
                         }
                     } else {
-                        closeLoader();
-                        //cloud has no data
-                        //if cloud data is also empty—first time user—Go ahead with normal flow
-                        gotoIRAddRemoteVPActivity(deviceInfo);
-                        Log.d(TAG, "no_appliance_data_cloud");
+
+                        //body key value is a json array
+                        JSONArray bodyJsonArray = responseObject.optJSONArray("body");
+                        if (bodyJsonArray.length() > 0) {
+
+                            bodyJsonObject = bodyJsonArray.getJSONObject(0);
+
+                            JSONArray applianceJsonArray = bodyJsonObject.optJSONArray("Appliance");
+                            if (applianceJsonArray.length() > 0) {
+
+                                onGetUserApplianceUserInfoInterface.onApiResponseCallback(deviceInfo, String.valueOf(bodyJsonObject));
+
+                            } else {
+                                closeLoader();
+                                //if cloud data is also empty—first time user—Go ahead with normal flowr
+
+                                //deleteAll the data present in the app if cloud has no data
+                                deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
+
+                                gotoIRAddRemoteVPActivity(deviceInfo);
+                            }
+                        } else {
+                            closeLoader();
+                            //if cloud data is also empty—first time user—Go ahead with normal flowr
+
+                            //deleteAll the data present in the app if cloud has no data
+                            deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
+
+                            gotoIRAddRemoteVPActivity(deviceInfo);
+                        }
+
                     }
 
-                } catch (JSONException e) {
+                } catch (
+                        JSONException e) {
                     e.printStackTrace();
                 }
 
@@ -1119,7 +1301,9 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
         });
 
 
-        getUserMgtDetailsRequest.setRetryPolicy(new DefaultRetryPolicy(30000,
+        getUserMgtDetailsRequest.setRetryPolicy(new
+
+                DefaultRetryPolicy(30000,
                 DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
                 DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
 
@@ -1129,30 +1313,85 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
     }
 
 
-    private void updateTvORTvpDetailsInSharedPref(ModelRemoteDetails modelRemoteDetails, DeviceInfo deviceInfo) {
-        SharedPreferences.Editor editor = getActivity().getSharedPreferences("Mavid", Context.MODE_PRIVATE).edit();
-        switch (modelRemoteDetails.getSelectedAppliance()) {
-            case "1":
-            case "TV":
-                //tv
-                String updatedTVRemoteDetailsString = gson.toJson(modelRemoteDetails);
+    private void updateApplianceInfoInSharedPref(ModelRemoteDetails modelRemoteDetails, String macId) {
 
-                editor.putString("tvRemoteDetails", updatedTVRemoteDetailsString);
-                editor.apply();
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("Mavid", Context.MODE_PRIVATE);
 
-                break;
+        Gson gson = new Gson();
 
-            case "2":
-            case "TVP":
-                //tvp
-                String updatedTVPRemoteDetailsString = gson.toJson(modelRemoteDetails);
+        String modelRemoteDetailsString = sharedPreferences.getString("applianceInfoList", "");
 
-                editor.putString("tvpRemoteDetails", updatedTVPRemoteDetailsString);
-                editor.apply();
 
-                break;
+        if (!modelRemoteDetailsString.isEmpty()) {
+
+            modelRemoteSubAndMacDetils = new ModelRemoteSubAndMacDetils();
+
+
+            modelRemoteSubAndMacDetils = gson.fromJson(modelRemoteDetailsString, ModelRemoteSubAndMacDetils.class);
+
+            if (modelRemoteSubAndMacDetils.getMac().equals(macId)) {
+
+                //update the appliance list  details in the list to the exsting device
+                modelRemoteSubAndMacDetils.getModelRemoteDetailsList().add(buidlRemoteDetails(modelRemoteDetails));
+
+                Log.d(TAG,"updatedApplianceList"+modelRemoteDetails.getSelectedBrandName());
+            } else {
+                //new device
+                modelRemoteSubAndMacDetils.setSub(sharedPreferences.getString("sub", ""));
+
+                modelRemoteSubAndMacDetils.setMac(macId);
+
+                List<ModelRemoteDetails> appllianceInfoList = new ArrayList();
+
+                appllianceInfoList.add(buidlRemoteDetails(modelRemoteDetails));
+
+                modelRemoteSubAndMacDetils.setModelRemoteDetailsList(appllianceInfoList);
+            }
+        } else {
+            //new user and first device
+            modelRemoteSubAndMacDetils = new ModelRemoteSubAndMacDetils();
+
+            modelRemoteSubAndMacDetils.setSub(sharedPreferences.getString("sub", ""));
+
+            modelRemoteSubAndMacDetils.setMac(macId);
+
+            List<ModelRemoteDetails> appllianceInfoList = new ArrayList();
+
+            appllianceInfoList.add(buidlRemoteDetails(modelRemoteDetails));
+
+            modelRemoteSubAndMacDetils.setModelRemoteDetailsList(appllianceInfoList);
         }
 
+
+
+        modelRemoteDetailsString = gson.toJson(modelRemoteSubAndMacDetils);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString("applianceInfoList", modelRemoteDetailsString);
+        editor.apply();
+    }
+
+
+    private ModelRemoteDetails buidlRemoteDetails(ModelRemoteDetails modelRemoteDetails) {
+        modelRemoteDetails.setSelectedAppliance(modelRemoteDetails.getSelectedAppliance());
+
+        if (modelRemoteDetails.getSelectedAppliance().equals("1") || modelRemoteDetails.getSelectedAppliance().equals("TV")) {
+            //for now hardcoding the customa name
+            modelRemoteDetails.setCustomName("TV");
+        } else if (modelRemoteDetails.getSelectedAppliance().equals("2") || modelRemoteDetails.getSelectedAppliance().equals("TVP")) {
+            //for now hardcoding the customa name
+            modelRemoteDetails.setCustomName("My Box");
+        }
+        modelRemoteDetails.setGroupId(1);
+
+        modelRemoteDetails.setGroupdName("Scene1");
+
+        modelRemoteDetails.setRemoteId(modelRemoteDetails.getRemoteId());
+
+        modelRemoteDetails.setSelectedBrandName(modelRemoteDetails.getSelectedBrandName());
+
+        modelRemoteDetails.setBrandId(modelRemoteDetails.getBrandId());
+
+        return modelRemoteDetails;
     }
 
 

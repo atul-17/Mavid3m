@@ -32,6 +32,7 @@ import org.json.JSONException
 import org.json.JSONObject
 import java.nio.charset.Charset
 import java.util.*
+import kotlin.collections.ArrayList
 
 class IRTvRemoteSelectionFragment : Fragment() {
 
@@ -58,7 +59,8 @@ class IRTvRemoteSelectionFragment : Fragment() {
 
     private var LDAPI_TIMOUT = 1
 
-    lateinit var fragmentApiViewModel: ApiViewModel
+    var modelRemoteSubAndMacDetils = ModelRemoteSubAndMacDetils()
+
 
     /**TODO dont allow user to go  when he clicks back after sending the data and the device is dowloading button list
      * */
@@ -362,7 +364,7 @@ class IRTvRemoteSelectionFragment : Fragment() {
                     val responseJSONObject = JSONObject(messageInfo?.message)
                     val statusCode = responseJSONObject.getInt("Status")
                     when (statusCode) {
-                        //READY-->1
+
                         3 -> {
                             myHandler.removeCallbacksAndMessages(LDAPI_TIMOUT)
                             irButtonListTimerTask?.cancel()
@@ -372,13 +374,17 @@ class IRTvRemoteSelectionFragment : Fragment() {
                             //need to delete the old appliance data ie tv/tvp/ac
 
                             //check if user has prev selected the same remote
-                            if (!checkIfTheUserSelectedRemoteIsPrevSelected(getActivityObject()!!.selectedApplianceType, remoteId)) {
+                            if (!checkIfTheUserSelectedRemoteIsPrevSelected(getActivityObject()!!.selectedApplianceType, remoteId, getActivityObject()?.deviceInfo!!.usn)) {
+
                                 deleteUserDevice(getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
                                         getActivityObject()?.deviceInfo!!.usn,
-                                        getRemoteDetailsFromSharedPrefThatNeedsToBeDeleted(getActivityObject()!!.selectedApplianceType), object : RestApiSucessFailureCallbacks {
-                                    override fun onSucessFailureCallbacks(isSucess: Boolean) {
+                                        getRemoteDetailsFromSharedPrefThatNeedsToBeDeleted(getActivityObject()!!.selectedApplianceType, getActivityObject()?.deviceInfo!!.usn), object : RestApiSucessFailureCallbacks {
+                                    override fun onSucessFailureCallbacks(isSucess: Boolean, modelRemoteDetails: ModelRemoteDetails?) {
 
                                         Log.d(TAG, "newSelectedAppliance".plus(getActivityObject()?.selectedApplianceType))
+
+                                        //deleting from the app storage
+                                        deleteApplianceFromSharedPref(getActivityObject()?.deviceInfo!!.usn, modelRemoteDetails)
 
                                         postUserManagment(getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
                                                 getActivityObject()?.deviceInfo!!.usn, buidlRenoteDetails(remoteId))
@@ -503,13 +509,21 @@ class IRTvRemoteSelectionFragment : Fragment() {
         var payLoadObject: JSONObject = JSONObject()
 
         when (modelRemoteDetails.selectedAppliance) {
-            "1" -> {
+            "1",
+            "TV"
+            -> {
                 payLoadObject.put("Appliance", "TV")//tv
             }
-            "2" -> {
+
+            "2",
+            "TVP"
+            -> {
                 payLoadObject.put("Appliance", "TVP")//tvp
             }
-            "3" -> {
+
+            "3",
+            "AC"
+            -> {
                 payLoadObject.put("Appliance", "AC")//ac
             }
         }
@@ -557,13 +571,13 @@ class IRTvRemoteSelectionFragment : Fragment() {
             var deleteUserDetailsStringRequest = object : StringRequest(Request.Method.POST, url, Response.Listener { response ->
 
 
-                restApiSucessFailureCallbacks.onSucessFailureCallbacks(true)
+                restApiSucessFailureCallbacks.onSucessFailureCallbacks(true, modelRemoteDetails)
 
                 Log.d(TAG, "deleteResponse:".plus(response))
 
             }, Response.ErrorListener { volleyError ->
 
-                restApiSucessFailureCallbacks.onSucessFailureCallbacks(false)
+                restApiSucessFailureCallbacks.onSucessFailureCallbacks(false, null)
 
                 Log.d(TAG, "Error: ${volleyError.networkResponse.statusCode}")
 
@@ -612,7 +626,7 @@ class IRTvRemoteSelectionFragment : Fragment() {
             )
             requestQueue.add(deleteUserDetailsStringRequest)
         } else {
-            restApiSucessFailureCallbacks.onSucessFailureCallbacks(true)
+            restApiSucessFailureCallbacks.onSucessFailureCallbacks(true, modelRemoteDetails)
         }
     }
 
@@ -636,18 +650,8 @@ class IRTvRemoteSelectionFragment : Fragment() {
 
             if (status == "200") {
 
-                when (modelRemoteDetails.selectedAppliance) {
-                    "1" -> {
+                updateApplianceInfoInSharedPref(modelRemoteDetails.remoteId.toInt(), getActivityObject()?.deviceInfo!!.usn)//tv or tvp or ac
 
-                        updateTVRemoteDetailsInSharedPref(modelRemoteDetails.remoteId.toInt())//tv
-                    }
-                    "2" -> {
-                        updateTVPRemoteDetailsInSharedPref(modelRemoteDetails.remoteId.toInt())
-                    }
-                    "3" -> {
-                        //ac
-                    }
-                }
                 gotoNextActivity(modelRemoteDetails.selectedAppliance)
             } else {
                 uiRelatedClass.buildSnackBarWithoutButton(getActivityObject()!!,
@@ -735,33 +739,6 @@ class IRTvRemoteSelectionFragment : Fragment() {
         intent.putExtras(bundle)
         startActivity(intent)
         getActivityObject()?.finish()
-    }
-
-    fun updateTVRemoteDetailsInSharedPref(remoteId: Int) {
-
-        var sharedPreferences = getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)
-        var editor: SharedPreferences.Editor
-        editor = sharedPreferences!!.edit()
-
-        val gson = Gson()
-        val modelRemoteDetailsString: String = gson.toJson(buidlRenoteDetails(remoteId))
-
-        editor.putString("tvRemoteDetails", modelRemoteDetailsString)
-        editor.apply()
-
-    }
-
-
-    fun updateTVPRemoteDetailsInSharedPref(remoteId: Int) {
-        var sharedPreferences = getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)
-        var editor: SharedPreferences.Editor
-        editor = sharedPreferences!!.edit()
-
-        val gson = Gson()
-        val modelRemoteDetailsString: String = gson.toJson(buidlRenoteDetails(remoteId))
-
-        editor.putString("tvpRemoteDetails", modelRemoteDetailsString)
-        editor.apply()
     }
 
 
@@ -857,93 +834,145 @@ class IRTvRemoteSelectionFragment : Fragment() {
         return modelRemoteDetails
     }
 
-    fun checkIfTheUserSelectedRemoteIsPrevSelected(userSelectedAppliance: String, userSelectedRemoteId: Int): Boolean {
+    fun checkIfTheUserSelectedRemoteIsPrevSelected(userSelectedAppliance: String, userSelectedRemoteId: Int, macId: String): Boolean {
         var sharedPreferences = getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)
         var gson = Gson()
-        when (userSelectedAppliance) {
-            "1" -> {
-                //tv
-                var tvApplianceString = sharedPreferences?.getString("tvRemoteDetails", "")
 
-                return if (tvApplianceString!!.isNotEmpty()) {
-                    var modelTvRemoteDetails = ModelRemoteDetails()
+        var modelRemoteDetailsString = sharedPreferences?.getString("applianceInfoList", "")
 
-                    modelTvRemoteDetails = gson?.fromJson<ModelRemoteDetails>(tvApplianceString, ModelRemoteDetails::class.java) as ModelRemoteDetails
+        if (modelRemoteDetailsString!!.isNotEmpty()) {
+            //data is present
 
-                    userSelectedRemoteId == modelTvRemoteDetails.remoteId.toInt()
-                } else {
-                    false;
+            modelRemoteSubAndMacDetils = ModelRemoteSubAndMacDetils()
+
+            modelRemoteSubAndMacDetils = gson?.fromJson<ModelRemoteSubAndMacDetils>(modelRemoteDetailsString,
+                    ModelRemoteSubAndMacDetils::class.java) as ModelRemoteSubAndMacDetils
+
+            if (modelRemoteSubAndMacDetils.mac == macId) {
+                for (modelRemoteDetails: ModelRemoteDetails in modelRemoteSubAndMacDetils.modelRemoteDetailsList) {
+                    if (modelRemoteDetails.selectedAppliance == userSelectedAppliance && modelRemoteDetails.remoteId == userSelectedRemoteId.toString()) {
+                        return true
+                    }
                 }
             }
-            "2" -> {
-                //tvp
-                var tvpApplianceString = sharedPreferences?.getString("tvpRemoteDetails", "")
-
-                return if (tvpApplianceString!!.isNotEmpty()) {
-                    var modelTvpRemoteDetails = ModelRemoteDetails()
-
-                    modelTvpRemoteDetails = gson?.fromJson<ModelRemoteDetails>(tvpApplianceString, ModelRemoteDetails::class.java) as ModelRemoteDetails
-
-                    userSelectedRemoteId == modelTvpRemoteDetails.remoteId.toInt()
-                } else {
-                    false
-                }
-            }
-            "3" -> {
-                //ac
-                return false
-            }
-
         }
         return false
     }
 
-    fun getRemoteDetailsFromSharedPrefThatNeedsToBeDeleted(userSelectedAppliance: String): ModelRemoteDetails? {
+
+    fun updateApplianceInfoInSharedPref(remoteId: Int, macId: String) {
+
+
         var sharedPreferences = getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)
+
+        val gson = Gson()
+
+        var modelRemoteDetailsString = sharedPreferences?.getString("applianceInfoList", "")
+
+        if (modelRemoteDetailsString!!.isNotEmpty()) {
+
+            modelRemoteSubAndMacDetils = ModelRemoteSubAndMacDetils()
+
+            modelRemoteSubAndMacDetils = gson?.fromJson<ModelRemoteSubAndMacDetils>(modelRemoteDetailsString,
+                    ModelRemoteSubAndMacDetils::class.java) as ModelRemoteSubAndMacDetils
+
+            if (modelRemoteSubAndMacDetils.mac == macId) {
+                //update the appliance list  details in the list to the exsting device
+                modelRemoteSubAndMacDetils.modelRemoteDetailsList.add(buidlRenoteDetails(remoteId))
+            } else {
+                //new device
+                modelRemoteSubAndMacDetils.sub = sharedPreferences!!.getString("sub", "")
+                modelRemoteSubAndMacDetils.mac = macId
+                var appllianceInfoList: MutableList<ModelRemoteDetails> = ArrayList()
+                appllianceInfoList.add(buidlRenoteDetails(remoteId))
+                modelRemoteSubAndMacDetils.modelRemoteDetailsList = appllianceInfoList
+            }
+        } else {
+            //new user and first device
+            modelRemoteSubAndMacDetils = ModelRemoteSubAndMacDetils()
+
+            modelRemoteSubAndMacDetils.sub = sharedPreferences!!.getString("sub", "")
+            modelRemoteSubAndMacDetils.mac = macId
+            var appllianceInfoList: MutableList<ModelRemoteDetails> = ArrayList()
+            appllianceInfoList.add(buidlRenoteDetails(remoteId))
+            modelRemoteSubAndMacDetils.modelRemoteDetailsList = appllianceInfoList
+        }
+
+        modelRemoteDetailsString = gson.toJson(modelRemoteSubAndMacDetils)
+        var editor: SharedPreferences.Editor
+        editor = sharedPreferences!!.edit()
+        editor.putString("applianceInfoList", modelRemoteDetailsString)
+        editor.apply()
+    }
+
+    private fun deleteApplianceFromSharedPref(macId: String, modelRemoteDetails: ModelRemoteDetails?) {
+        if (modelRemoteDetails != null) {
+
+            var sharedPreferences = getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)
+
+            var gson = Gson()
+
+            var modelRemoteDetailsString = sharedPreferences?.getString("applianceInfoList", "")
+
+            if (modelRemoteDetailsString!!.isNotEmpty()) {
+                //if data is present
+                modelRemoteSubAndMacDetils = ModelRemoteSubAndMacDetils()
+
+
+                modelRemoteSubAndMacDetils = gson?.fromJson<ModelRemoteSubAndMacDetils>(modelRemoteDetailsString,
+                        ModelRemoteSubAndMacDetils::class.java) as ModelRemoteSubAndMacDetils
+
+                if (modelRemoteSubAndMacDetils.mac == macId) {
+
+                    val appllianceList = modelRemoteSubAndMacDetils.modelRemoteDetailsList
+
+                    val iterator = appllianceList.iterator()
+
+                    while (iterator.hasNext()) {
+                        val storedRemoteDetails: ModelRemoteDetails = iterator.next()
+
+                        if (storedRemoteDetails.remoteId == modelRemoteDetails?.remoteId
+                                && storedRemoteDetails.brandId == modelRemoteDetails?.brandId) {
+                            Log.d(TAG, "deletedFromSharedPref".plus(storedRemoteDetails.remoteId))
+                            iterator.remove()
+                        }
+                    }
+                }
+                //saving the details
+                modelRemoteDetailsString = gson.toJson(modelRemoteSubAndMacDetils)
+                var editor: SharedPreferences.Editor = sharedPreferences!!.edit()
+                editor.putString("applianceInfoList", modelRemoteDetailsString)
+                editor.apply()
+            }
+        }
+    }
+
+    fun getRemoteDetailsFromTheApplianceList(userSelectedAppliance: String, modelRemoteDetailsList: MutableList<ModelRemoteDetails>): ModelRemoteDetails? {
+        for (modelRemoteDetails: ModelRemoteDetails in modelRemoteDetailsList) {
+            if (userSelectedAppliance == modelRemoteDetails.selectedAppliance) {
+                return modelRemoteDetails
+            }
+        }
+        return null
+    }
+
+    fun getRemoteDetailsFromSharedPrefThatNeedsToBeDeleted(userSelectedAppliance: String, macId: String): ModelRemoteDetails? {
+        var sharedPreferences = getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)
+
         var gson = Gson()
 
-        when (userSelectedAppliance) {
-            "1" -> {
-                //tv
-                var tvApplianceString = sharedPreferences?.getString("tvRemoteDetails", "")
+        var modelRemoteDetailsString = sharedPreferences?.getString("applianceInfoList", "")
 
-                return if (tvApplianceString!!.isNotEmpty()) {
-                    //user has data in his phone
-                    var modelTvRemoteDetails = ModelRemoteDetails()
+        if (modelRemoteDetailsString!!.isNotEmpty()) {
+            //if data is present
+            modelRemoteSubAndMacDetils = ModelRemoteSubAndMacDetils()
 
-                    modelTvRemoteDetails = gson?.fromJson<ModelRemoteDetails>(tvApplianceString, ModelRemoteDetails::class.java) as ModelRemoteDetails
+            modelRemoteSubAndMacDetils = gson?.fromJson<ModelRemoteSubAndMacDetils>(modelRemoteDetailsString,
+                    ModelRemoteSubAndMacDetils::class.java) as ModelRemoteSubAndMacDetils
 
-
-
-                    modelTvRemoteDetails
-
-
-                } else {
-                    //new user // or uninstalled the app and installed it again.
-                    null
-                }
-            }
-
-            "2" -> {
-                //tvp
-                var tvApplianceString = sharedPreferences?.getString("tvpRemoteDetails", "")
-
-                var modelTvpRemoteDetails = ModelRemoteDetails()
-
-                return if (tvApplianceString!!.isNotEmpty()) {
-                    //user has data in his phone
-                    modelTvpRemoteDetails = gson?.fromJson<ModelRemoteDetails>(tvApplianceString, ModelRemoteDetails::class.java) as ModelRemoteDetails
-
-                    modelTvpRemoteDetails
-                } else {
-                    //new user // or uninstalled the app and installed it again.
-                    null
-                }
-            }
-
-            "3" -> {
-                //ac
-                return null
+            if (modelRemoteSubAndMacDetils.mac == macId) {
+                //and the appliance should be from that particular mavid device
+                return getRemoteDetailsFromTheApplianceList(userSelectedAppliance, modelRemoteSubAndMacDetils?.modelRemoteDetailsList)
             }
         }
         return null

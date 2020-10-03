@@ -33,7 +33,7 @@ android {
         targetSdkVersion 28
         versionCode 1
         multiDexEnabled true
-        versionName "1.0(0.4.2)_IR_phase_3.1"
+        versionName "1.0(0.4.2)_IR_phase_3.1_bug_fixes"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {

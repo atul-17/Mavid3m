@@ -14,12 +14,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.fragment.app.FragmentManager
-import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.mavid.R
 import com.mavid.adapters.ApplianceFragmentAdapter
 import com.mavid.libresdk.LibreMavidHelper
@@ -28,14 +26,13 @@ import com.mavid.libresdk.TaskManager.Discovery.Listeners.ListenerUtils.DeviceIn
 import com.mavid.libresdk.TaskManager.Discovery.Listeners.ListenerUtils.MessageInfo
 import com.mavid.models.ModelGetUserDetailsAppliance
 import com.mavid.models.ModelRemoteDetails
+import com.mavid.models.ModelRemoteSubAndMacDetils
 import com.mavid.utility.OnRemoteKeyPressedInterface
 import com.mavid.utility.UIRelatedClass
 import com.mavid.viewmodels.ApiViewModel
 import kotlinx.android.synthetic.main.activity_ir_add_remote_vp.*
-import kotlinx.android.synthetic.main.custom_tab_view_layout.*
 import org.json.JSONArray
 import org.json.JSONObject
-import java.lang.reflect.Type
 
 
 class IRAddRemoteVPActivity : AppCompatActivity() {
@@ -87,6 +84,8 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
         var irAddRemoteVPActivity: IRAddRemoteVPActivity? = null
     }
 
+    var modelRemoteSubAndMacDetils = ModelRemoteSubAndMacDetils()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_ir_add_remote_vp)
@@ -114,10 +113,7 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
         sharedPreferences = getSharedPreferences("Mavid", Context.MODE_PRIVATE)
 
 
-
-        setTVRemoteDetails()
-
-        setTVPRemoteDetails()
+        setApplianceInfoDetails()
 
         titles.add("Setup Box")
 
@@ -211,33 +207,65 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
     }
 
 
-    fun setTVPRemoteDetails() {
+    fun setApplianceInfoDetails() {
         //getting from the local storage
-        val modelTvpRemoteDetailsString: String = sharedPreferences.getString("tvpRemoteDetails", "")
 
-        when {
-            modelTvpRemoteDetailsString.isNotEmpty() -> {
+        setDefaultApplianceInfo()
 
-                gson = Gson()
+        var sharedPreferences = getSharedPreferences("Mavid", Context.MODE_PRIVATE)
 
-                appliancesSelectionVp.visibility = View.VISIBLE
+        val gson = Gson()
 
-                modelTvpRemoteDetails = gson?.fromJson<ModelRemoteDetails>(modelTvpRemoteDetailsString, ModelRemoteDetails::class.java) as ModelRemoteDetails
+        var modelRemoteDetailsString = sharedPreferences?.getString("applianceInfoList", "")
 
-                tvpRemoteId = modelTvpRemoteDetails.remoteId
+        if (modelRemoteDetailsString!!.isNotEmpty()) {
+            //user has added data //might be tv.tvp.or.ac
 
-                tvpSelectedBrand = modelTvpRemoteDetails.selectedBrandName
+            modelRemoteSubAndMacDetils = ModelRemoteSubAndMacDetils()
 
-                Log.d(TAG, "getttingTvpName ".plus(tvpSelectedBrand))
+
+            modelRemoteSubAndMacDetils = gson?.fromJson<ModelRemoteSubAndMacDetils>(modelRemoteDetailsString,
+                    ModelRemoteSubAndMacDetils::class.java) as ModelRemoteSubAndMacDetils
+
+            if (modelRemoteSubAndMacDetils.mac == deviceInfo?.usn) {
+                //data is present for the mavid device user has selected
+                for (modelRemoteDetails: ModelRemoteDetails in modelRemoteSubAndMacDetils.modelRemoteDetailsList) {
+
+                    if (modelRemoteDetails.selectedAppliance == "1" || modelRemoteDetails.selectedAppliance == "TV") {
+
+                        modelTvRemoteDetails = modelRemoteDetails
+
+                        tvRemoteId = modelTvRemoteDetails.remoteId
+
+                        tvSelectedBrand = modelTvRemoteDetails.selectedBrandName
+
+                    } else if (modelRemoteDetails.selectedAppliance == "2" || modelRemoteDetails.selectedAppliance == "TVP") {
+
+                        modelTvpRemoteDetails = modelRemoteDetails
+
+                        tvpRemoteId = modelTvpRemoteDetails.remoteId
+
+                        tvpSelectedBrand = modelTvpRemoteDetails.selectedBrandName
+                    }
+                }
+
+            } else {
+                //diff mavid device ..so data might not be present
+                setDefaultApplianceInfo()
             }
-
-            else -> {
-                tvpRemoteId = "0"
-                tvpSelectedBrand = "Not Set"
-            }
+        } else {
+            //user hasnt added any device
+            setDefaultApplianceInfo()
         }
 
+    }
 
+    fun setDefaultApplianceInfo() {
+        tvpRemoteId = "0"
+        tvpSelectedBrand = "Not Set"
+
+        tvRemoteId = "0"
+        tvSelectedBrand = "Not Set"
     }
 
 
@@ -257,15 +285,11 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
 
                 modelTvRemoteDetails = gson?.fromJson<ModelRemoteDetails>(modelTvRemoteDetailsString, ModelRemoteDetails::class.java) as ModelRemoteDetails
 
-                tvRemoteId = modelTvRemoteDetails.remoteId
-
-                tvSelectedBrand = modelTvRemoteDetails.selectedBrandName
 
             }
 
             else -> {
-                tvRemoteId = "0"
-                tvSelectedBrand = "Not Set"
+
             }
         }
     }
