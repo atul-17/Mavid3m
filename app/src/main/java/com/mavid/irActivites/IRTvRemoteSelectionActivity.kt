@@ -48,7 +48,7 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
     var deviceInfo: DeviceInfo? = null
 
-   var selectedApplianceType = ""
+    var selectedApplianceType = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,7 +61,7 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
             deviceInfo = intent!!.extras!!.getSerializable("deviceInfo") as DeviceInfo
 
-            selectedApplianceType = intent!!.extras.getString("selectedApplianceType","1")//tv
+            selectedApplianceType = intent!!.extras.getString("selectedApplianceType", "1")//tv
 
         }
         apiViewModel = ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory(application)).get(ApiViewModel::class.java)
@@ -69,7 +69,7 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
         buildrogressDialog()
         showProgressBar()
-        getTVOrTVPORACSelectionData(applianceId,selectedApplianceType)
+        getTVOrTVPORACSelectionData(applianceId, selectedApplianceType)
 
     }
 
@@ -137,9 +137,27 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
             val tvAlertTitle = alert.findViewById<AppCompatTextView>(R.id.tvAlertTitle)
             val tvAlertMessage = alert.findViewById<AppCompatTextView>(R.id.tvAlertMessage)
-
-            tvAlertMessage.text = "Did the $buttonName button work??"
-
+            var applianceType = ""
+            when (selectedApplianceType) {
+                "1",
+                "TV" -> {
+                    applianceType = "TV"
+                }
+                "2",
+                "TVP" -> {
+                    applianceType = "Setup Box"
+                }
+                "3",
+                "AC" -> {
+                    //
+                }
+            }
+            if (buttonName.equals("POWER", true)) {
+                tvAlertMessage.text = "Does the $applianceType Power ON/OFF?"
+            } else {
+                //for non power button
+                tvAlertMessage.text = "Does $applianceType Responds correctly to $buttonName Button?"
+            }
             val btnNo = alert.findViewById<AppCompatButton>(R.id.btnNo)
             btnNo.setOnClickListener {
                 alert.dismiss()
@@ -237,9 +255,9 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
     }
 
-    fun getTVOrTVPORACSelectionData(id: Int, selectedApplianceType:String) {
+    fun getTVOrTVPORACSelectionData(id: Int, selectedApplianceType: String) {
 
-        apiViewModel.getTvSelectJsonDetails(id,selectedApplianceType)?.observe(this, Observer {
+        apiViewModel.getTvSelectJsonDetails(id, selectedApplianceType)?.observe(this, Observer {
             if (it.modelSelectRemotePayload != null) {
                 if (it.modelSelectRemotePayload?.applianceBrandId != 0) {
                     if (it.modelSelectRemotePayload?.levelJsonArray != null) {

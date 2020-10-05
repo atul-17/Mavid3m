@@ -63,6 +63,9 @@
         <activity android:name=".OtherSetupApproach.OSHotSpotSuccessAlexaLogin"
             android:screenOrientation="portrait"
             />
+
+        <activity android:name=".irActivites.IRRestoreSelectionActivity"
+            android:screenOrientation="portrait"/>
 <!--        <activity-->
 <!--            android:name=".DeviceListFragment"-->
 <!--            android:label="@string/home"-->
@@ -102,7 +105,8 @@
             android:screenOrientation="portrait"
             />
 
-        <activity android:name=".irActivites.IRRestoreSelectionActivity"
+
+        <activity android:name=".irActivites.IRRemoteSelectionInstrActivity"
             android:screenOrientation="portrait"
             />
 

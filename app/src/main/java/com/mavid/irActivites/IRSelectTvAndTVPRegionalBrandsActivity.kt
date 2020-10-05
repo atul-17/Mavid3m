@@ -195,8 +195,8 @@ class IRSelectTvAndTVPRegionalBrandsActivity : AppCompatActivity() {
             }
 
             override fun onItemClick(view: View?, position: Int) {
-                //taking the user for remote selection screen
-                val intent = Intent(this@IRSelectTvAndTVPRegionalBrandsActivity, IRTvRemoteSelectionActivity::class.java)
+                //taking the user for remote selection instructions
+                val intent = Intent(this@IRSelectTvAndTVPRegionalBrandsActivity, IRRemoteSelectionInstrActivity::class.java)
                 val bundle = Bundle()
                 bundle.putInt("applianceId", tvBrandsList[position].id)
                 bundle.putString("applianceBrandName", tvBrandsList[position].name)
@@ -230,7 +230,7 @@ class IRSelectTvAndTVPRegionalBrandsActivity : AppCompatActivity() {
 
             override fun onItemClick(view: View?, position: Int) {
                 //taking the user for remote selection screen
-                val intent = Intent(this@IRSelectTvAndTVPRegionalBrandsActivity, IRTvRemoteSelectionActivity::class.java)
+                val intent = Intent(this@IRSelectTvAndTVPRegionalBrandsActivity, IRRemoteSelectionInstrActivity::class.java)
                 val bundle = Bundle()
                 bundle.putInt("applianceId", modelGetTvpBrandsSucessResponseList[position].regionalId)
                 bundle.putString("applianceBrandName", modelGetTvpBrandsSucessResponseList[position].modelTvpGetRegionalBrand.tvpBrandTitle)

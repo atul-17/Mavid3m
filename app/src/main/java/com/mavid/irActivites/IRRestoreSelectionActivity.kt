@@ -269,7 +269,7 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
             payLoadObject.put("Appliance", "TV")
         }
         payLoadObject.put("RemoteID", modelRemoteDetails.remoteId)
-        payLoadObject.put("BrandId", modelRemoteDetails.brandId)
+        payLoadObject.put("BrandID", modelRemoteDetails.brandId)
 
         payLoadObject.put("GroupID", modelRemoteDetails.groupId.toString())
 
@@ -564,7 +564,7 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
         try {
             modelRemoteDetails.selectedBrandName = applianceObject.getString("BrandName")
             modelRemoteDetails.remoteId = applianceObject.getString("RemoteID")
-            modelRemoteDetails.brandId = applianceObject.getString("BrandId")
+            modelRemoteDetails.brandId = applianceObject.getString("BrandID")
             if (applianceObject["Appliance"] == "TV") {
                 modelRemoteDetails.selectedAppliance = "1"
             } else if (applianceObject["Appliance"] == "TVP") {

@@ -74,7 +74,9 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 public class DeviceListFragment extends Fragment implements OnButtonClickListViewInterface {
@@ -905,9 +907,11 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
     }
 
 
-    private List<ModelRemoteDetails> addAppAppliancesDataToList(String macId) {
+    private HashMap<ModelRemoteDetails, String> addAppAppliancesDataToList(String macId) {
 
-        List<ModelRemoteDetails> appliancesList = new ArrayList<>();
+//        List<ModelRemoteDetails> appliancesList = new ArrayList<>();
+        HashMap<ModelRemoteDetails, String> appliancesListHashmap = new HashMap<>();
+
         SharedPreferences sharedPreferences = getActivity().getSharedPreferences("Mavid", Context.MODE_PRIVATE);
 
         Gson gson = new Gson();
@@ -918,23 +922,30 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
 
             modelRemoteSubAndMacDetils = new ModelRemoteSubAndMacDetils();
 
-
             modelRemoteSubAndMacDetils = gson.fromJson(modelRemoteDetailsString, ModelRemoteSubAndMacDetils.class);
 
             if (modelRemoteSubAndMacDetils.getMac().equals(macId)) {
                 if (modelRemoteSubAndMacDetils.getModelRemoteDetailsList() != null) {
                     if (modelRemoteSubAndMacDetils.getModelRemoteDetailsList().size() > 0) {
-                        appliancesList = modelRemoteSubAndMacDetils.getModelRemoteDetailsList();
+                        for (ModelRemoteDetails modelRemoteDetails : modelRemoteSubAndMacDetils.getModelRemoteDetailsList()) {
+
+                            appliancesListHashmap.put(modelRemoteDetails, "1");
+
+//                            appliancesList = modelRemoteSubAndMacDetils.getModelRemoteDetailsList();
+                        }
                     }
                 }
             }
         }
 
-        return appliancesList;
+        return appliancesListHashmap;
     }
 
-    private List<ModelRemoteDetails> addDeviceApplianceInfoToAList(JSONArray deviceApplianceJsonArray) {
-        List<ModelRemoteDetails> mavidDeviceAppliancesList = new ArrayList();
+    private HashMap<ModelRemoteDetails, String> addDeviceApplianceInfoToAList(JSONArray deviceApplianceJsonArray) {
+//        List<ModelRemoteDetails> mavidDeviceAppliancesList = new ArrayList();
+
+        HashMap<ModelRemoteDetails, String> mavidDeviceAppliancesHashmap = new HashMap<>();
+
         for (int i = 0; i < deviceApplianceJsonArray.length(); i++) {
             ModelRemoteDetails modelRemoteDetails = new ModelRemoteDetails();
 
@@ -965,12 +976,13 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
 
                 modelRemoteDetails.setBrandId(String.valueOf(applianceJsonObject.getInt("bId")));
 
-                mavidDeviceAppliancesList.add(modelRemoteDetails);
+//                mavidDeviceAppliancesList.add(modelRemoteDetails);
+                mavidDeviceAppliancesHashmap.put(modelRemoteDetails, "1");
             } catch (JSONException e) {
                 e.printStackTrace();
             }
         }
-        return mavidDeviceAppliancesList;
+        return mavidDeviceAppliancesHashmap;
     }
 
 
@@ -989,7 +1001,7 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
 
             if (modelRemoteSubAndMacDetils.getMac().equals(macId)) {
                 //removing all the appliances present for that mavid device
-                Log.d(TAG,"deletedAllDataFromSharedPref");
+                Log.d(TAG, "deletedAllDataFromSharedPref");
                 modelRemoteSubAndMacDetils.getModelRemoteDetailsList().removeAll(modelRemoteSubAndMacDetils.getModelRemoteDetailsList());
             }
         }
@@ -1022,14 +1034,14 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
             Log.d(TAG, "bothDeviceAndAppDataIsEmpty");
         } else {
 
-            List<ModelRemoteDetails> deviceApplianceInfoList = addDeviceApplianceInfoToAList(deviceApplianceJsonArray);
+            HashMap<ModelRemoteDetails, String> deviceApplianceInfoHashMap = addDeviceApplianceInfoToAList(deviceApplianceJsonArray);
 
-            List<ModelRemoteDetails> appDeviceApplianceInfoList = addAppAppliancesDataToList(deviceInfo.getUSN());
+            HashMap<ModelRemoteDetails, String> appDeviceApplianceInfoHashMap = addAppAppliancesDataToList(deviceInfo.getUSN());
 
             //if the mavid device and app data list size are smae
-            if (deviceApplianceInfoList.size() == appDeviceApplianceInfoList.size()) {
+            if (deviceApplianceInfoHashMap.size() == appDeviceApplianceInfoHashMap.size()) {
                 //compare the data objects of mavidData and appData
-                boolean isMatching = commpareMavidDeviceDataAndAppData(deviceApplianceInfoList, appDeviceApplianceInfoList);
+                boolean isMatching = commpareMavidDeviceDataAndAppData(deviceApplianceInfoHashMap, appDeviceApplianceInfoHashMap);
                 if (isMatching) {
                     //goto vp activity
                     gotoIRAddRemoteVPActivity(deviceInfo);
@@ -1077,7 +1089,7 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
              *    and moddified the contents of the device
              *
              * */
-            else if (deviceApplianceInfoList.size() == 0 && appDeviceApplianceInfoList.size() > 0) {
+            else if (deviceApplianceInfoHashMap.size() == 0 && appDeviceApplianceInfoHashMap.size() > 0) {
                 //device reset or user has modfied the data in another phone
                 getUserApplianceInfoDetails(getActivity()
                         .getSharedPreferences("Mavid", Context.MODE_PRIVATE).getString("sub", ""), deviceInfo, new OnGetUserApplianceUserInfoInterface() {
@@ -1124,14 +1136,10 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
         }
     }
 
-    private boolean commpareMavidDeviceDataAndAppData(List<ModelRemoteDetails> mavidApplianceInfoList, List<ModelRemoteDetails> appApplianceInfoList) {
-        for (ModelRemoteDetails mavidApplianceInfoObject : mavidApplianceInfoList) {
-            for (ModelRemoteDetails appApplianceObject : appApplianceInfoList) {
-                if (mavidApplianceInfoObject.getBrandId()
-                        .equals(appApplianceObject.getBrandId()) &&
-                        mavidApplianceInfoObject.getRemoteId().equals(appApplianceObject.getRemoteId())) {
-                    return true;
-                }
+    private boolean commpareMavidDeviceDataAndAppData(HashMap<ModelRemoteDetails, String> mavidApplianceInfoHashMapList, HashMap<ModelRemoteDetails, String> appApplianceInfoHashmapList) {
+        for (Map.Entry<?, ?> mavidApplianceHashMap : mavidApplianceInfoHashMapList.entrySet()) {
+            if (appApplianceInfoHashmapList.containsKey(mavidApplianceHashMap)) {
+                return true;
             }
         }
         return false;
@@ -1170,7 +1178,7 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
         try {
             modelRemoteDetails.setSelectedBrandName(applianceObject.getString("BrandName"));
             modelRemoteDetails.setRemoteId(applianceObject.getString("RemoteID"));
-            modelRemoteDetails.setBrandId(applianceObject.getString("BrandId"));
+            modelRemoteDetails.setBrandId(applianceObject.getString("BrandID"));
             if (applianceObject.get("Appliance").equals("TV")) {
                 modelRemoteDetails.setSelectedAppliance("1");
             } else if (applianceObject.get("Appliance").equals("TVP")) {
@@ -1334,7 +1342,7 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
                 //update the appliance list  details in the list to the exsting device
                 modelRemoteSubAndMacDetils.getModelRemoteDetailsList().add(buidlRemoteDetails(modelRemoteDetails));
 
-                Log.d(TAG,"updatedApplianceList"+modelRemoteDetails.getSelectedBrandName());
+                Log.d(TAG, "updatedApplianceList" + modelRemoteDetails.getSelectedBrandName());
             } else {
                 //new device
                 modelRemoteSubAndMacDetils.setSub(sharedPreferences.getString("sub", ""));
@@ -1361,7 +1369,6 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
 
             modelRemoteSubAndMacDetils.setModelRemoteDetailsList(appllianceInfoList);
         }
-
 
 
         modelRemoteDetailsString = gson.toJson(modelRemoteSubAndMacDetils);

@@ -28,6 +28,8 @@ import com.mavid.models.*
 import com.mavid.utility.*
 import com.mavid.viewmodels.ApiViewModel
 import kotlinx.android.synthetic.main.fragment_tv_remote_selection.*
+import kotlinx.android.synthetic.main.fragment_tv_remote_selection.tvHeading
+import kotlinx.android.synthetic.main.ir_selection_instrs_activity.*
 import org.json.JSONException
 import org.json.JSONObject
 import java.nio.charset.Charset
@@ -100,7 +102,14 @@ class IRTvRemoteSelectionFragment : Fragment() {
     }
 
     fun updateTheCommandToBeSentTodDevice() {
-        tvSendingCommand.text = "Sending command:".plus(codeLevelIndex + 1).plus("/").plus(modelLevelData.modelLevelCodeList?.size)
+        if (modelLevelData.modelLevelCodeList != null) {
+            if (codeLevelIndex + 1 <= modelLevelData.modelLevelCodeList!!.size) {
+                tvSendingCommand.text = "Checking available configurations ".plus(codeLevelIndex + 1).plus("/").plus(modelLevelData.modelLevelCodeList?.size)
+                tvSendingCommand.visibility = View.VISIBLE
+            } else {
+                tvSendingCommand.visibility = View.GONE
+            }
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -114,7 +123,6 @@ class IRTvRemoteSelectionFragment : Fragment() {
             initViews()
         }
 
-
         btnRemoteButtonName.setOnClickListener {
             /** send the commmand
              *  wait for the acknowledgement from the device
@@ -123,7 +131,6 @@ class IRTvRemoteSelectionFragment : Fragment() {
             getActivityObject()?.showProgressBar()
             //need to check id
             if (getActivityObject() != null && modelLevelCode != null) {
-                myHandler.sendEmptyMessage(DO_UPDATE_TEXT);
                 sendCommandToMavidDevice(getActivityObject()!!.applianceId, modelLevelCode?.command!!, getActivityObject()!!.ipAddress, object : OnMavid3mAckTheCommandInterface {
                     override fun onAcknowledgment(status: String) {
                         getActivityObject()?.dismissLoader()
@@ -134,7 +141,7 @@ class IRTvRemoteSelectionFragment : Fragment() {
                             getActivityObject()?.showCustomAlertForRemoteSelection(btnRemoteButtonName.text.toString(), object : OnUserButtonSelection {
                                 override fun didTheCommandWork(value: Boolean) {
                                     modelLevelCode?.isCommandWorking = value
-
+                                    myHandler.sendEmptyMessage(DO_UPDATE_TEXT)
                                     if (value) {
                                         //it worked
                                         /** The command
@@ -286,16 +293,44 @@ class IRTvRemoteSelectionFragment : Fragment() {
 
     fun initViews() {
 
+        when (getActivityObject()?.selectedApplianceType) {
+            "1",
+            "TV" -> {
+                //tv
+                tvHeading.text = "TV Remote Selection"
+                tvRemoteSelectionInstrs.text = "Tap the below button and confirm whether TV responds"
+            }
+            "2",
+            "TVP" -> {
+                //tvp
+                //tv
+                tvHeading.text = "Setup Box Remote Selection"
+                tvRemoteSelectionInstrs.text = "Tap the below button and confirm whether Setup Box responds"
+            }
+            "3",
+            "AC" -> {
+
+            }
+        }
         level = modelLevelData.level
 
         modelLevelCode = getModelCodeLevel(codeLevelIndex)
 
         val command = modelLevelCode?.command
 
+        if (modelLevelData.key!!.equals("POWER", true)) {
+            tvMessageNonPowerButton.visibility = View.GONE
+        } else {
+            tvMessageNonPowerButton.visibility = View.VISIBLE
+        }
+
         btnRemoteButtonName.text = modelLevelData.key
+
         btnRemoteButtonName.visibility = View.VISIBLE
         getActivityObject()?.dismissLoader()
         Log.d(TAG, "CommandToBeSent".plus(command))
+
+        myHandler.sendEmptyMessage(DO_UPDATE_TEXT)
     }
 
 
@@ -461,7 +496,6 @@ class IRTvRemoteSelectionFragment : Fragment() {
     /** LDAPI#3*/
     fun sendCommandToMavidDevice(brandId: Int, remoteCommand: String, ipdAddress: String, onMavid3mAckTheCommandInterface: OnMavid3mAckTheCommandInterface) {
         getActivityObject()?.showProgressBar()
-        tvSendingCommand.visibility = View.VISIBLE
         LibreMavidHelper.sendCustomCommands(ipdAddress,
                 LibreMavidHelper.COMMANDS.SEND_IR_REMOTE_DETAILS_AND_RETRIVING_BUTTON_LIST,
                 buildPayloadToSendCommandToTheDevice(brandId, remoteCommand),
@@ -529,7 +563,7 @@ class IRTvRemoteSelectionFragment : Fragment() {
         }
 
         payLoadObject.put("RemoteID", modelRemoteDetails.remoteId)
-        payLoadObject.put("BrandId", modelRemoteDetails.brandId)
+        payLoadObject.put("BrandID", modelRemoteDetails.brandId)
 
         payLoadObject.put("GroupID", modelRemoteDetails.groupId.toString())
 
