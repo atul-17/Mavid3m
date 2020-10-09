@@ -2,6 +2,7 @@ package com.mavid.irActivites
 
 import android.app.Dialog
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.Window
 import android.widget.ProgressBar
@@ -11,16 +12,22 @@ import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.android.volley.*
+import com.android.volley.toolbox.StringRequest
+import com.android.volley.toolbox.Volley
 import com.mavid.BaseActivity
 import com.mavid.R
 import com.mavid.fragments.IRTvRemoteSelectionFragment
 import com.mavid.libresdk.TaskManager.Discovery.Listeners.ListenerUtils.DeviceInfo
-import com.mavid.models.*
+import com.mavid.models.ModelLevelCode
+import com.mavid.models.ModelLevelData
+import com.mavid.models.ModelSelectRemotePayload
+import com.mavid.utility.OnCallingGetApiToGetCustomNames
 import com.mavid.utility.OnUserButtonSelection
 import com.mavid.utility.UIRelatedClass
 import com.mavid.viewmodels.ApiViewModel
 import kotlinx.android.synthetic.main.activity_ir_tv_remote_selection.*
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 
 class IRTvRemoteSelectionActivity : BaseActivity() {
@@ -67,10 +74,168 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
         apiViewModel = ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory(application)).get(ApiViewModel::class.java)
 
 
+
         buildrogressDialog()
         showProgressBar()
+
         getTVOrTVPORACSelectionData(applianceId, selectedApplianceType)
 
+    }
+
+    fun addUserCustomNamesToHashMap(applianceInfoJsonObject: JSONObject?, applianceJSONArray: JSONArray?): HashMap<String, String> {
+
+        var customNamesHashMap: HashMap<String, String> = HashMap()
+
+        if (applianceInfoJsonObject != null) {
+            try {
+                customNamesHashMap[applianceInfoJsonObject.getString("CustomName")] = "1"
+            } catch (e: JSONException) {
+                e.printStackTrace()
+            }
+        } else {
+            if (applianceJSONArray != null) {
+                for (i in 0 until applianceJSONArray.length()) {
+                    val applianceInfoObject = applianceJSONArray[i] as JSONObject
+                    customNamesHashMap[applianceInfoObject.getString("CustomName")] = "1"
+                }
+            }
+        }
+        return customNamesHashMap
+    }
+
+
+    fun getAppliancesListFromAllDevicesTheUserHasConfigured(sub: String, onCallingGetApiToGetCustomNames: OnCallingGetApiToGetCustomNames) {
+
+        val requestQueue = Volley.newRequestQueue(this@IRTvRemoteSelectionActivity)
+
+        val baseUrl = "https://op4w1ojeh4.execute-api.us-east-1.amazonaws.com/Beta/usermangement?" + "sub=" + sub + "&Mac=" + deviceInfo!!.usn
+
+        Log.d(TAG, "requestedURl: $baseUrl")
+
+        var userAddedCustomNamesHashMap: HashMap<String, String> = HashMap()
+
+        val stringRequest = StringRequest(Request.Method.GET, baseUrl, Response.Listener { response ->
+
+            Log.d(TAG, "getUserManagementDetailsAllDevices: response: $response")
+
+
+            val responseObject = JSONObject(response)
+
+            val bodyJsonObject: JSONObject? = responseObject.optJSONObject("body")
+
+            if (bodyJsonObject != null) {
+                val applianceJsonObject = bodyJsonObject.optJSONObject("Appliance")
+                if (applianceJsonObject != null) {
+                    userAddedCustomNamesHashMap = addUserCustomNamesToHashMap(applianceJsonObject, null)
+                } else {
+                    //might be an array
+                    val applianceJsonArray = bodyJsonObject.optJSONArray("Appliance")
+                    if (applianceJsonArray != null) {
+                        if (applianceJsonArray.length() > 0) {
+                            userAddedCustomNamesHashMap = addUserCustomNamesToHashMap(null, applianceJsonArray)
+                        }
+                    }
+                }
+            } else {
+                //body key value is a json array
+                val bodyJsonArray: JSONArray? = responseObject.optJSONArray("body")
+                if (bodyJsonArray != null) {
+                    if (bodyJsonArray.length() > 0) {
+                        //appliance key might be json obejct
+                        val applianceJsonObject: JSONObject? = bodyJsonObject?.optJSONObject("Appliance")
+                        if (applianceJsonObject != null) {
+                            userAddedCustomNamesHashMap = addUserCustomNamesToHashMap(applianceJsonObject, null)
+                        } else {
+                            //might be an array
+                            val applianceJsonArray: JSONArray? = bodyJsonObject?.optJSONArray("Appliance")
+                            if (applianceJsonArray != null) {
+                                if (applianceJsonArray.length() > 0) {
+                                    userAddedCustomNamesHashMap = addUserCustomNamesToHashMap(null, applianceJsonArray)
+                                }
+                            }
+                        }
+                    }
+                }
+
+            }
+            onCallingGetApiToGetCustomNames.onResponse(userAddedCustomNamesHashMap)
+        }, Response.ErrorListener { volleyError ->
+            if (volleyError is TimeoutError || volleyError is NoConnectionError) {
+                uiRelatedClass.buildSnackBarWithoutButton(this@IRTvRemoteSelectionActivity,
+                        this@IRTvRemoteSelectionActivity.window.decorView.findViewById(android.R.id.content), "Seems your internet connection is slow, please try in sometime")
+            } else if (volleyError is AuthFailureError) {
+                uiRelatedClass.buildSnackBarWithoutButton(this@IRTvRemoteSelectionActivity,
+                        this@IRTvRemoteSelectionActivity.window.decorView.findViewById(android.R.id.content), "AuthFailure error occurred, please try again later")
+            } else if (volleyError is ServerError) {
+                if (volleyError.networkResponse.statusCode != 302) {
+                    uiRelatedClass.buildSnackBarWithoutButton(this@IRTvRemoteSelectionActivity,
+                            this@IRTvRemoteSelectionActivity.window.decorView.findViewById(android.R.id.content), "Server error occurred, please try again later")
+                }
+            } else if (volleyError is NetworkError) {
+                uiRelatedClass.buildSnackBarWithoutButton(this@IRTvRemoteSelectionActivity,
+                        this@IRTvRemoteSelectionActivity.window.decorView.findViewById(android.R.id.content), "Network error occurred, please try again later")
+            } else if (volleyError is ParseError) {
+                uiRelatedClass.buildSnackBarWithoutButton(this@IRTvRemoteSelectionActivity,
+                        this@IRTvRemoteSelectionActivity.window.decorView.findViewById(android.R.id.content), "Parser error occurred, please try again later")
+            }
+        })
+
+        stringRequest.setRetryPolicy(DefaultRetryPolicy(30000,
+                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT))
+
+        requestQueue.add<String>(stringRequest)
+    }
+
+    fun addPreDefinedPopularOptionsCustomName(selectedAppliace: String, brandName: String): HashMap<String, String> {
+        var popularOptionsHashMap: HashMap<String, String> = HashMap()
+        var applianceType = "TV"
+        when (selectedAppliace) {
+            "1",
+            "TV"
+            -> {
+                //tv
+                popularOptionsHashMap[applianceType] = "1"
+                applianceType = "TV"
+            }
+            "2",
+            "TVP"
+            -> {
+                //tvp
+                popularOptionsHashMap["My Box"] = "1"
+                applianceType = "Set Top Box"
+            }
+            "3" -> {
+                //ac
+            }
+        }
+
+
+        popularOptionsHashMap["Living Room $applianceType"] = "1"
+
+        popularOptionsHashMap["$brandName $applianceType"] = "1"
+
+        popularOptionsHashMap["BED room $applianceType"] = "1"
+
+        popularOptionsHashMap["Office $applianceType"] = "1"
+
+        return popularOptionsHashMap
+    }
+
+
+    fun filterOutDuplicateNamesWhichAreUsedByTheUser(customNamesUserIsUsingList:
+                                                     HashMap<String, String>, preDefinedPopularOptionsHashMap: HashMap<String, String>): HashMap<String, String> {
+
+        var mutableIterator = preDefinedPopularOptionsHashMap.iterator()
+
+        for (preDefinedHashMapObject: Map.Entry<String, String> in mutableIterator) {
+            if (customNamesUserIsUsingList.containsKey(preDefinedHashMapObject.key)) {
+                //ie then the user that name for the appliance ie tv.tvp
+                //so remove from the suggested options
+                mutableIterator.remove()
+            }
+        }
+        return preDefinedPopularOptionsHashMap
     }
 
 
@@ -145,7 +310,7 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
                 }
                 "2",
                 "TVP" -> {
-                    applianceType = "Setup Box"
+                    applianceType = "Set Top Box"
                 }
                 "3",
                 "AC" -> {

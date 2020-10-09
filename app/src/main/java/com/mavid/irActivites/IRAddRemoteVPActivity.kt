@@ -115,7 +115,7 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
 
         setApplianceInfoDetails()
 
-        titles.add("Setup Box")
+        titles.add("Set Top Box")
 
         titles.add("Television")
 

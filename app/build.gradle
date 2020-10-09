@@ -34,7 +34,7 @@ android {
         versionCode 1
         multiDexEnabled true
         //last two digits is the engineering version ie here->01
-        versionName "2.1.01"
+        versionName "2.1.07"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {

@@ -1056,22 +1056,29 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
                                     try {
                                         JSONObject bodyJsonObject = new JSONObject(bodyObject);
 
-                                        JSONArray applianceJsonArray = bodyJsonObject.optJSONArray("Appliance");
-
-                                        //deleteAll the data present in the app
-                                        deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
-
-                                        for (int i = 0; i < applianceJsonArray.length(); i++) {
-                                            /**
-                                             * 1)remove the old data present in the app
-                                             * 2)updating the tv or tvp details
-                                             * */
-
-                                            ModelRemoteDetails modelRemoteDetails = parseApplianceJsonObject((JSONObject) applianceJsonArray.get(i));
-
+                                        JSONObject applianceJsonObject = bodyJsonObject.optJSONObject("Appliance");
+                                        if (applianceJsonObject != null) {
+                                            ModelRemoteDetails modelRemoteDetails = parseApplianceJsonObject((JSONObject) applianceJsonObject);
                                             //update the cloud data to the app
                                             updateApplianceInfoInSharedPref(modelRemoteDetails, deviceInfo.getUSN());
+                                        } else {
+                                            JSONArray applianceJsonArray = bodyJsonObject.optJSONArray("Appliance");
+                                            //deleteAll the data present in the app
+                                            deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
+
+                                            for (int i = 0; i < applianceJsonArray.length(); i++) {
+                                                /**
+                                                 * 1)remove the old data present in the app
+                                                 * 2)updating the tv or tvp details
+                                                 * */
+
+                                                ModelRemoteDetails modelRemoteDetails = parseApplianceJsonObject((JSONObject) applianceJsonArray.get(i));
+
+                                                //update the cloud data to the app
+                                                updateApplianceInfoInSharedPref(modelRemoteDetails, deviceInfo.getUSN());
+                                            }
                                         }
+
                                     } catch (JSONException e) {
                                         e.printStackTrace();
                                     }
@@ -1114,17 +1121,23 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
                         try {
                             JSONObject bodyJsonObject = new JSONObject(bodyObject);
 
-                            JSONArray applianceJsonArray = bodyJsonObject.optJSONArray("Appliance");
-
-                            deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
-
-                            for (int i = 0; i < applianceJsonArray.length(); i++) {
-                                /**
-                                 * 1)remove the old data present in the app
-                                 * 2)updating the tv or tvp details
-                                 * */
-                                ModelRemoteDetails modelRemoteDetails = parseApplianceJsonObject((JSONObject) applianceJsonArray.get(i));
+                            JSONObject applianceJsonObject = bodyJsonObject.optJSONObject("Appliance");
+                            if (applianceJsonObject != null) {
+                                ModelRemoteDetails modelRemoteDetails = parseApplianceJsonObject((JSONObject) applianceJsonObject);
                                 updateApplianceInfoInSharedPref(modelRemoteDetails, deviceInfo.getUSN());
+                            } else {
+                                JSONArray applianceJsonArray = bodyJsonObject.optJSONArray("Appliance");
+
+                                deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
+
+                                for (int i = 0; i < applianceJsonArray.length(); i++) {
+                                    /**
+                                     * 1)remove the old data present in the app
+                                     * 2)updating the tv or tvp details
+                                     * */
+                                    ModelRemoteDetails modelRemoteDetails = parseApplianceJsonObject((JSONObject) applianceJsonArray.get(i));
+                                    updateApplianceInfoInSharedPref(modelRemoteDetails, deviceInfo.getUSN());
+                                }
                             }
                         } catch (JSONException e) {
                             e.printStackTrace();
@@ -1137,8 +1150,8 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
     }
 
     private boolean commpareMavidDeviceDataAndAppData(HashMap<ModelRemoteDetails, String> mavidApplianceInfoHashMapList, HashMap<ModelRemoteDetails, String> appApplianceInfoHashmapList) {
-        for (Map.Entry<?, ?> mavidApplianceHashMap : mavidApplianceInfoHashMapList.entrySet()) {
-            if (appApplianceInfoHashmapList.containsKey(mavidApplianceHashMap)) {
+        for (Map.Entry<ModelRemoteDetails, String> mavidApplianceHashMap : mavidApplianceInfoHashMapList.entrySet()) {
+            if (appApplianceInfoHashmapList.containsKey(mavidApplianceHashMap.getKey())) {
                 return true;
             }
         }
@@ -1224,30 +1237,9 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
                     if (bodyJsonObject != null) {
                         //body key value is a json object
                         JSONArray applianceJsonArray = bodyJsonObject.optJSONArray("Appliance");
-                        if (applianceJsonArray.length() > 0) {
-                            onGetUserApplianceUserInfoInterface.onApiResponseCallback(deviceInfo, String.valueOf(bodyJsonObject));
-                        } else {
-                            closeLoader();
-                            //if cloud data is also empty—first time user—Go ahead with normal flowr
-
-                            //deleteAll the data present in the app if cloud has no data
-                            deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
-
-                            gotoIRAddRemoteVPActivity(deviceInfo);
-                        }
-                    } else {
-
-                        //body key value is a json array
-                        JSONArray bodyJsonArray = responseObject.optJSONArray("body");
-                        if (bodyJsonArray.length() > 0) {
-
-                            bodyJsonObject = bodyJsonArray.getJSONObject(0);
-
-                            JSONArray applianceJsonArray = bodyJsonObject.optJSONArray("Appliance");
+                        if (applianceJsonArray != null) {
                             if (applianceJsonArray.length() > 0) {
-
                                 onGetUserApplianceUserInfoInterface.onApiResponseCallback(deviceInfo, String.valueOf(bodyJsonObject));
-
                             } else {
                                 closeLoader();
                                 //if cloud data is also empty—first time user—Go ahead with normal flowr
@@ -1258,15 +1250,53 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
                                 gotoIRAddRemoteVPActivity(deviceInfo);
                             }
                         } else {
+                            //appliance key might be json obejct
+                            JSONObject applianceJsonObject = bodyJsonObject.optJSONObject("Appliance");
+                            if (applianceJsonObject != null) {
+                                onGetUserApplianceUserInfoInterface.onApiResponseCallback(deviceInfo, String.valueOf(bodyJsonObject));
+                            }
+                        }
+                    } else {
+                        //body key value is a json array
+                        JSONArray bodyJsonArray = responseObject.optJSONArray("body");
+
+                        if (bodyJsonArray != null) {
+
+                            if (bodyJsonArray.length() > 0) {
+
+                                bodyJsonObject = bodyJsonArray.getJSONObject(0);
+
+                                JSONArray applianceJsonArray = bodyJsonObject.optJSONArray("Appliance");
+                                if (applianceJsonArray != null) {
+                                    if (applianceJsonArray.length() > 0) {
+
+                                        onGetUserApplianceUserInfoInterface.onApiResponseCallback(deviceInfo, String.valueOf(bodyJsonObject));
+
+                                    } else {
+                                        closeLoader();
+                                        //if cloud data is also empty—first time user—Go ahead with normal flowr
+
+                                        //deleteAll the data present in the app if cloud has no data
+                                        deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
+
+                                        gotoIRAddRemoteVPActivity(deviceInfo);
+                                    }
+                                }
+                            } else {
+                                closeLoader();
+                                //if cloud data is also empty—first time user—Go ahead with normal flowr
+
+                                //deleteAll the data present in the app if cloud has no data
+                                deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
+
+                                gotoIRAddRemoteVPActivity(deviceInfo);
+                            }
+                        } else {
+                            //body key is a string
                             closeLoader();
-                            //if cloud data is also empty—first time user—Go ahead with normal flowr
-
-                            //deleteAll the data present in the app if cloud has no data
-                            deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
-
+                            //new user or sub has been deleted form cloud
                             gotoIRAddRemoteVPActivity(deviceInfo);
                         }
-
                     }
 
                 } catch (

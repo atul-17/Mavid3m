@@ -67,7 +67,7 @@ class IRSelectTvAndTVPRegionalBrandsActivity : AppCompatActivity() {
             activityHeading.text = "Select your TV Manufacturer"
             getTvBrandsList()
         } else {
-            activityHeading.text = "Select your Regional Setup Box"
+            activityHeading.text = "Select your Regional Set Top Box"
             getTVPBrandList(tvpBrandId.toInt())
         }
     }

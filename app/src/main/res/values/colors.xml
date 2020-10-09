@@ -28,6 +28,7 @@
     <color name="brand_purple" type="color">#788294</color>
 
 
+    <color name="red_light"> #f0afa9</color>
 
     <color name="brand_dark_grey" type="color">#5c5c5c</color>
     <color name="brand_light_grey" type="color">#292929</color>
@@ -51,6 +52,9 @@
     <color name="orange_transparent">#AAFADCA7</color>
     <color name="orange">#FADCA7</color>
     <color name="yellow">#EEFF41</color>
+
+    <color name="yellow_light">#fcffde</color>
+
     <color name="default_background">#3d3d3d</color>
     <color name="list_item_background">#101316</color>
     <color name="slave_selection">#09232f</color>
@@ -79,6 +83,9 @@
 
     <color name="color_blue"> #0000CD </color>
 
+    <color name="color_blue_light"> #cdcdff </color>
+
+    <color name="orange_lightest"> #ffddc4 </color>
 
     <color name="app_text_color_enabled">#FF6A00</color>
     <color name="app_text_color_disabled">#A1A1A1</color>
@@ -87,5 +94,7 @@
     <color name="app_orange_light">#7FEF6330</color>
     <color name="app_dark_pink_light">#7FB63070</color>
     <color name="app_mid_pink_light">#7FD44A4F</color>
+
+    <color name="color_green_light"> #e0efcf </color>
 
 </resources>

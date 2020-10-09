@@ -34,7 +34,7 @@
                     android:layout_gravity="center"
                     android:layout_weight="1.9"
                     android:gravity="center"
-                    android:text="Select your Setup Box "
+                    android:text="Select your Set Top Box "
                     android:textAllCaps="true"
                     app:textAllCaps="false"
                     android:textColor="@color/white"

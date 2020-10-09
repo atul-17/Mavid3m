@@ -47,8 +47,8 @@ class IRRemoteSelectionInstrActivity : AppCompatActivity() {
             "2",
             "TVP"
             -> {
-                tvHeading.text = "Setup Box Remote Selection"
-                tvInstructionsMsg.text = applianceBrandName.plus(" Setup Box have several remotes available , please follow the instructions to select the remote that suits your Setup Box")
+                tvHeading.text = "Set Top Box. Remote Selection"
+                tvInstructionsMsg.text = applianceBrandName.plus(" Set Top Box have several remotes available , please follow the instructions to select the remote that suits your Set Top Box")
             }
             "3" -> {
                 //ac

@@ -143,7 +143,7 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
 
             } else if (modelRemoteDetailsList[index].selectedAppliance == "TVP") {
 
-                selectedAppliance = "Setup Box"
+                selectedAppliance = "Set Top Box"
 
             }
 

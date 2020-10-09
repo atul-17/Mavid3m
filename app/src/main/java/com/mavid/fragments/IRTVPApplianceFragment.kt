@@ -2,19 +2,20 @@ package com.mavid.fragments
 
 import android.content.Context
 import android.content.Intent
-import android.os.Build
-import android.os.Bundle
-import android.os.VibrationEffect
-import android.os.Vibrator
+import android.os.*
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.mavid.R
 import com.mavid.irActivites.IRAddRemoteVPActivity
 import com.mavid.irActivites.IRTvpBrandActivity
 import com.mavid.libresdk.LibreMavidHelper
 import com.mavid.utility.OnRemoteKeyPressedInterface
+import kotlinx.android.synthetic.main.fragment_ir_television_appliance.*
 import kotlinx.android.synthetic.main.fragment_ir_tvp_layout.*
 import kotlinx.android.synthetic.main.fragment_ir_tvp_layout.ibBackButton
 import kotlinx.android.synthetic.main.fragment_ir_tvp_layout.ibSourceButton
@@ -51,11 +52,37 @@ import kotlinx.android.synthetic.main.fragment_ir_tvp_layout.tvVolMinusButton
 import kotlinx.android.synthetic.main.fragment_ir_tvp_layout.tvVolPlusButton
 import kotlinx.android.synthetic.main.fragment_ir_tvp_layout.tvYellowButton
 
-class IRTVPApplianceFragment : Fragment(),View.OnClickListener {
+class IRTVPApplianceFragment : Fragment(), View.OnClickListener {
 
     private var vibe: Vibrator? = null
 
     private var TAG = IRTVPApplianceFragment::class.java.simpleName
+
+    var workingTvpRemoteButtonsHashMap: HashMap<String, String> = HashMap()
+
+    var gson: Gson? = Gson()
+
+    var preDefinedRemoteButtonsHashmap: HashMap<String, String> = HashMap()
+
+    var DISABLE_REMOTE_BUTTONS: Int = 0
+
+    val myHandler: Handler = object : Handler() {
+        override fun handleMessage(msg: Message?) {
+            val what: Int = msg!!.what
+            when (what) {
+                DISABLE_REMOTE_BUTTONS -> {
+                    val workingRemoteButtonsString = getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("workingTVPRemoteButtons", "")
+                    val type = object : TypeToken<HashMap<String?, String?>?>() {}.type
+
+                    if (workingRemoteButtonsString.isNotEmpty()) {
+                        addPreDefinedButtonsToHashmap()
+                        workingTvpRemoteButtonsHashMap = gson?.fromJson(workingRemoteButtonsString, type) as HashMap<String, String>
+                        disableNotWorkingButtons()
+                    }
+                }
+            }
+        }
+    }
 
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
@@ -76,6 +103,7 @@ class IRTVPApplianceFragment : Fragment(),View.OnClickListener {
             llRemoteUi.visibility = View.VISIBLE
         }
 
+        myHandler.sendEmptyMessage(DISABLE_REMOTE_BUTTONS)
 
         tvSelectTVP.setOnClickListener {
             val intent = Intent(getActivityObject(), IRTvpBrandActivity::class.java)
@@ -96,6 +124,232 @@ class IRTVPApplianceFragment : Fragment(),View.OnClickListener {
             vibe = getActivityObject()?.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             vibe?.vibrate(150)
         }
+    }
+
+
+    fun disableNotWorkingButtons() {
+
+        Log.d(TAG, "workingRemoteButtonsTVP: ".plus(workingTvpRemoteButtonsHashMap))
+
+        for (preDefinedRemoteButtonObject: Map.Entry<String, String> in preDefinedRemoteButtonsHashmap) {
+            if (!workingTvpRemoteButtonsHashMap.containsKey(preDefinedRemoteButtonObject.key)) {
+                //if the working remote buttons does not contain the preDefined button
+                //then disable that button
+                when (preDefinedRemoteButtonObject.key) {
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.SOURCE_BUTTON -> {
+                        ibSourceButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.BACK_BUTTON -> {
+                        ibBackButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.CHANNEL_DOWN -> {
+                        tvChDownButton.isEnabled = false
+                    }
+
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.REC_BUTTON -> {
+                        rlRecButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.EXIT_BUTTON -> {
+                        tvExitButtonAlt.isEnabled = false
+                    }
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.STOP_BUTTON -> {
+                        ibStopButton.isEnabled = false
+                    }
+
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.INFO_BUTTON -> {
+                        ibInfoButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.FAST_FORWARD_BUTTON -> {
+                        ibFastForwardButton.isEnabled = false
+                    }
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.PAUSE_BUTTON -> {
+                        ibPauseButton.isEnabled = false
+                    }
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.PLAY_BUTTON -> {
+                        ibPlayButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.REWIND_BUTTON -> {
+                        ibRewindButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.RED_BUTTON -> {
+                        tvRedButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.YELLOW_BUTTON -> {
+                        tvYellowButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.GREEN_BUTTON -> {
+                        tvGreenButton.isEnabled = false
+                    }
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.BLUE_BUTTON -> {
+                        tvBlueButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.OK_BUTTON
+                    -> {
+                        if (getActivityObject()?.tvpSelectedBrand == "Tata Sky") {
+                            if (!workingTvpRemoteButtonsHashMap.containsKey(LibreMavidHelper.REMOTECONTROLBUTTONNAME.SELECT_BUTTON)) {
+                                tvOkButton.isEnabled = false
+                                tvOkButton.setTextColor(getActivityObject()!!.resources.getColor(R.color.light_gray))
+                            } else {
+                                tvOkButton.isEnabled = true
+                                tvOkButton.setTextColor(getActivityObject()!!.resources.getColor(R.color.black))
+                            }
+                        } else {
+                            tvOkButton.isEnabled = false
+                            tvOkButton.setTextColor(getActivityObject()!!.resources.getColor(R.color.light_gray))
+                        }
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.CHANNEL_UP -> {
+                        tvChUpButton.isEnabled = false
+                    }
+
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.RIGHT_BUTTON -> {
+                        ivRightButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.LEFT_BUTTON -> {
+                        ivLeftButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.DOWN_BUTTON -> {
+                        ivDownButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.UP_BUTTON -> {
+                        ivUpButton.isEnabled = false
+                    }
+
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.VOLUME_DOWN -> {
+                        tvVolMinusButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.VOLUME_MUTE_BUTTON -> {
+                        ibVolumeMuteButton.isEnabled = false
+                    }
+
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.VOLUME_UP -> {
+                        tvVolPlusButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.NEXT_BUTTON -> {
+                        ibNextButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.PREV_BUTTON -> {
+                        ibPrevButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.LANG_BUTTON -> {
+                        tvLangButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.GUIDE_BUTTON -> {
+                        tvGuideButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.OPTION_BUTTON -> {
+                        tvOptionButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.MENU_BUTTON -> {
+                        tvMenuButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.HOME_BUTTON -> {
+                        tvHomeButton.isEnabled = false
+                    }
+
+                    LibreMavidHelper.REMOTECONTROLBUTTONNAME.POWER_BUTTON -> {
+                        ibPowerButton.isEnabled = false
+                    }
+                }
+            }
+        }
+    }
+
+    fun addPreDefinedButtonsToHashmap() {
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.SOURCE_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.BACK_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.CHANNEL_DOWN, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.REC_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.EXIT_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.STOP_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.INFO_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.FAST_FORWARD_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.PAUSE_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.PLAY_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.REWIND_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.RED_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.YELLOW_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.GREEN_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.BLUE_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.OK_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.SELECT_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.CHANNEL_UP, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.CHANNEL_DOWN, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.RIGHT_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.LEFT_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.DOWN_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.UP_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.VOLUME_DOWN, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.VOLUME_MUTE_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.VOLUME_UP, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.NEXT_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.PREV_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.LANG_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.GUIDE_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.OPTION_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.MENU_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.HOME_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.POWER_BUTTON, "1")
+
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.ZERO_NOS_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.ONE_NOS_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.TWO_NOS_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.THREE_NOS_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.FOUR_NOS_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.FIVE_NOS_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.SIX_NOS_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.SEVEN_NOS_BUTTON, "1")
+
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.EIGHT_NOS_BUTTON, "1")
+        preDefinedRemoteButtonsHashmap.put(LibreMavidHelper.REMOTECONTROLBUTTONNAME.NINE_NOS_BUTTON, "1")
+
     }
 
 

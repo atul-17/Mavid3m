@@ -16,6 +16,7 @@ import com.android.volley.*
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.mavid.R
 import com.mavid.irActivites.IRAddRemoteVPActivity
 import com.mavid.irActivites.IRSelectTvAndTVPRegionalBrandsActivity
@@ -26,15 +27,14 @@ import com.mavid.libresdk.TaskManager.Communication.Listeners.CommandStatusListe
 import com.mavid.libresdk.TaskManager.Discovery.Listeners.ListenerUtils.MessageInfo
 import com.mavid.models.*
 import com.mavid.utility.*
-import com.mavid.viewmodels.ApiViewModel
 import kotlinx.android.synthetic.main.fragment_tv_remote_selection.*
 import kotlinx.android.synthetic.main.fragment_tv_remote_selection.tvHeading
-import kotlinx.android.synthetic.main.ir_selection_instrs_activity.*
 import org.json.JSONException
 import org.json.JSONObject
 import java.nio.charset.Charset
 import java.util.*
 import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
 class IRTvRemoteSelectionFragment : Fragment() {
 
@@ -63,6 +63,7 @@ class IRTvRemoteSelectionFragment : Fragment() {
 
     var modelRemoteSubAndMacDetils = ModelRemoteSubAndMacDetils()
 
+    var workingRemoteButtonsHashMap: HashMap<String, String> = HashMap()
 
     /**TODO dont allow user to go  when he clicks back after sending the data and the device is dowloading button list
      * */
@@ -304,8 +305,8 @@ class IRTvRemoteSelectionFragment : Fragment() {
             "TVP" -> {
                 //tvp
                 //tv
-                tvHeading.text = "Setup Box Remote Selection"
-                tvRemoteSelectionInstrs.text = "Tap the below button and confirm whether Setup Box responds"
+                tvHeading.text = "Set Top Box Remote Selection"
+                tvRemoteSelectionInstrs.text = "Tap the below button and confirm whether Set Top Box responds"
             }
             "3",
             "AC" -> {
@@ -348,7 +349,8 @@ class IRTvRemoteSelectionFragment : Fragment() {
                             val status = dataJsonObject.getInt("Status")
 
                             if (status == 2) {//device acknowledged
-                                /**need to call the LDAPI#2*/
+                                /**need to call the LDAPI#2
+                                 * */
                                 timerTaskToReadDeviceStatus(ipAddress, remoteId)
                             } else if (status == 3) {
                                 //error
@@ -374,6 +376,7 @@ class IRTvRemoteSelectionFragment : Fragment() {
                     }
                 })
     }
+
 
     /** Call the LDAPI#2 every 3 seconds and check the status */
     fun timerTaskToReadDeviceStatus(ipdAddress: String, remoteId: Int) {
@@ -402,29 +405,67 @@ class IRTvRemoteSelectionFragment : Fragment() {
 
                         3 -> {
                             myHandler.removeCallbacksAndMessages(LDAPI_TIMOUT)
+                            myHandler?.removeCallbacksAndMessages(null)
                             irButtonListTimerTask?.cancel()
                             /** get the button list from the data json object */
-//                            val buttonJsonArray = responseJSONObject.getJSONArray("keys")
+
+                            val payloadJsonObject = responseJSONObject.getJSONObject("payload")
+
+                            val buttonJsonArray = payloadJsonObject.getJSONArray("keys")
+
+                            Log.d(TAG, "buttonList: ".plus(buttonJsonArray.toString()))
+
+                            for (i in 0 until buttonJsonArray.length()) {
+                                val buttonNameString = buttonJsonArray[i] as String
+                                workingRemoteButtonsHashMap[buttonNameString] = "1"
+                            }
+
 
                             //need to delete the old appliance data ie tv/tvp/ac
 
                             //check if user has prev selected the same remote
                             if (!checkIfTheUserSelectedRemoteIsPrevSelected(getActivityObject()!!.selectedApplianceType, remoteId, getActivityObject()?.deviceInfo!!.usn)) {
 
-                                deleteUserDevice(getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
-                                        getActivityObject()?.deviceInfo!!.usn,
-                                        getRemoteDetailsFromSharedPrefThatNeedsToBeDeleted(getActivityObject()!!.selectedApplianceType, getActivityObject()?.deviceInfo!!.usn), object : RestApiSucessFailureCallbacks {
-                                    override fun onSucessFailureCallbacks(isSucess: Boolean, modelRemoteDetails: ModelRemoteDetails?) {
+                                /**show the user an options to edit custom for the appliance he has configured
+                                 * *
+                                 * */
+                                //calling get api from with
+                                //all the devices present
+                                getActivityObject()?.getAppliancesListFromAllDevicesTheUserHasConfigured(getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
+                                        object : OnCallingGetApiToGetCustomNames {
+                                            override fun onResponse(userAddedCustomNamesHashMap: HashMap<String, String>) {
+                                                /**
+                                                 * Filter out names which
+                                                 * are already used by the
+                                                 * user.
+                                                 * */
+                                                val filtredHashMap: HashMap<String, String> = getActivityObject()!!
+                                                        .filterOutDuplicateNamesWhichAreUsedByTheUser(userAddedCustomNamesHashMap, getActivityObject()!!.addPreDefinedPopularOptionsCustomName(getActivityObject()!!
+                                                                .selectedApplianceType, getActivityObject()!!.applianceName))
 
-                                        Log.d(TAG, "newSelectedAppliance".plus(getActivityObject()?.selectedApplianceType))
+                                                getActivityObject()?.dismissLoader()
+                                                //show the dialog to edit custom name
+                                                uiRelatedClass.showBottomDialogForAddingCustomName(getActivityObject()!!, object : OnButtonClickCallbackWithStringParams {
+                                                    override fun onUserClicked(userPassedInfo: String) {
+                                                        deleteUserDevice(getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
+                                                                getActivityObject()?.deviceInfo!!.usn,
+                                                                getRemoteDetailsFromSharedPrefThatNeedsToBeDeleted(getActivityObject()!!.selectedApplianceType, getActivityObject()?.deviceInfo!!.usn), object : RestApiSucessFailureCallbacks {
+                                                            override fun onSucessFailureCallbacks(isSucess: Boolean, modelRemoteDetails: ModelRemoteDetails?) {
 
-                                        //deleting from the app storage
-                                        deleteApplianceFromSharedPref(getActivityObject()?.deviceInfo!!.usn, modelRemoteDetails)
+                                                                Log.d(TAG, "newSelectedAppliance".plus(getActivityObject()?.selectedApplianceType))
 
-                                        postUserManagment(getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
-                                                getActivityObject()?.deviceInfo!!.usn, buidlRenoteDetails(remoteId))
-                                    }
-                                })
+                                                                //deleting from the app storage
+                                                                getActivityObject()?.showProgressBar()
+                                                                deleteApplianceFromSharedPref(getActivityObject()?.deviceInfo!!.usn, modelRemoteDetails)
+
+                                                                postUserManagment(getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
+                                                                        getActivityObject()?.deviceInfo!!.usn, buidlRenoteDetails(remoteId, userPassedInfo))
+                                                            }
+                                                        })
+                                                    }
+                                                }, filtredHashMap, getActivityObject()!!.selectedApplianceType, getActivityObject()!!.applianceName)
+                                            }
+                                        })
                             } else {
                                 /** show a dialog to inform the user
                                  * he has prev selected the same remote id
@@ -438,7 +479,7 @@ class IRTvRemoteSelectionFragment : Fragment() {
                                     })
                                 }
                             }
-//                            Log.d(TAG, "buttonList: ".plus(buttonJsonArray.toString()))
+
                         }
                     }
                 } catch (e: JSONException) {
@@ -684,7 +725,8 @@ class IRTvRemoteSelectionFragment : Fragment() {
 
             if (status == "200") {
 
-                updateApplianceInfoInSharedPref(modelRemoteDetails.remoteId.toInt(), getActivityObject()?.deviceInfo!!.usn)//tv or tvp or ac
+                updateApplianceInfoInSharedPref(modelRemoteDetails.remoteId.toInt(),
+                        getActivityObject()?.deviceInfo!!.usn, modelRemoteDetails.customName)//tv or tvp or ac
 
                 gotoNextActivity(modelRemoteDetails.selectedAppliance)
             } else {
@@ -848,15 +890,11 @@ class IRTvRemoteSelectionFragment : Fragment() {
         return payloadJsonObject.toString()
     }
 
-    fun buidlRenoteDetails(remoteId: Int): ModelRemoteDetails {
+    fun buidlRenoteDetails(remoteId: Int, customName: String): ModelRemoteDetails {
         var modelRemoteDetails = ModelRemoteDetails()
         modelRemoteDetails.selectedAppliance = getActivityObject()!!.selectedApplianceType
 
-        if (getActivityObject()!!.selectedApplianceType == "1") {
-            modelRemoteDetails.customName = "TV"//for now hardcoding the customa name
-        } else if (getActivityObject()!!.selectedApplianceType == "2") {
-            modelRemoteDetails.customName = "My Box"//for now hardcoding the customa name
-        }
+        modelRemoteDetails.customName = customName
 
         modelRemoteDetails.groupId = 1
         modelRemoteDetails.groupdName = "Scene1"
@@ -894,7 +932,7 @@ class IRTvRemoteSelectionFragment : Fragment() {
     }
 
 
-    fun updateApplianceInfoInSharedPref(remoteId: Int, macId: String) {
+    fun updateApplianceInfoInSharedPref(remoteId: Int, macId: String, customName: String) {
 
 
         var sharedPreferences = getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)
@@ -912,13 +950,13 @@ class IRTvRemoteSelectionFragment : Fragment() {
 
             if (modelRemoteSubAndMacDetils.mac == macId) {
                 //update the appliance list  details in the list to the exsting device
-                modelRemoteSubAndMacDetils.modelRemoteDetailsList.add(buidlRenoteDetails(remoteId))
+                modelRemoteSubAndMacDetils.modelRemoteDetailsList.add(buidlRenoteDetails(remoteId, customName))
             } else {
                 //new device
                 modelRemoteSubAndMacDetils.sub = sharedPreferences!!.getString("sub", "")
                 modelRemoteSubAndMacDetils.mac = macId
                 var appllianceInfoList: MutableList<ModelRemoteDetails> = ArrayList()
-                appllianceInfoList.add(buidlRenoteDetails(remoteId))
+                appllianceInfoList.add(buidlRenoteDetails(remoteId, customName))
                 modelRemoteSubAndMacDetils.modelRemoteDetailsList = appllianceInfoList
             }
         } else {
@@ -928,14 +966,24 @@ class IRTvRemoteSelectionFragment : Fragment() {
             modelRemoteSubAndMacDetils.sub = sharedPreferences!!.getString("sub", "")
             modelRemoteSubAndMacDetils.mac = macId
             var appllianceInfoList: MutableList<ModelRemoteDetails> = ArrayList()
-            appllianceInfoList.add(buidlRenoteDetails(remoteId))
+            appllianceInfoList.add(buidlRenoteDetails(remoteId, customName))
             modelRemoteSubAndMacDetils.modelRemoteDetailsList = appllianceInfoList
         }
 
         modelRemoteDetailsString = gson.toJson(modelRemoteSubAndMacDetils)
+
+        val workingRemoteButtonsString = gson.toJson(workingRemoteButtonsHashMap)
+
         var editor: SharedPreferences.Editor
         editor = sharedPreferences!!.edit()
         editor.putString("applianceInfoList", modelRemoteDetailsString)
+
+        if (getActivityObject()?.selectedApplianceType == "1" || getActivityObject()?.selectedApplianceType == "TV") {
+            editor.putString("workingTVRemoteButtons", workingRemoteButtonsString)
+        } else if (getActivityObject()?.selectedApplianceType == "2" || getActivityObject()?.selectedApplianceType == "TVP") {
+            editor.putString("workingTVPRemoteButtons", workingRemoteButtonsString)
+        }
+
         editor.apply()
     }
 
