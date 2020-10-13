@@ -321,7 +321,6 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
 
                 restApiSucessFailureCallbacks.onSucessFailureCallbacks(true, modelRemoteDetails)
 
-                ;
                 Log.d(TAG, "deleteResponse:".plus(response))
 
 

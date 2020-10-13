@@ -1411,13 +1411,8 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
     private ModelRemoteDetails buidlRemoteDetails(ModelRemoteDetails modelRemoteDetails) {
         modelRemoteDetails.setSelectedAppliance(modelRemoteDetails.getSelectedAppliance());
 
-        if (modelRemoteDetails.getSelectedAppliance().equals("1") || modelRemoteDetails.getSelectedAppliance().equals("TV")) {
-            //for now hardcoding the customa name
-            modelRemoteDetails.setCustomName("TV");
-        } else if (modelRemoteDetails.getSelectedAppliance().equals("2") || modelRemoteDetails.getSelectedAppliance().equals("TVP")) {
-            //for now hardcoding the customa name
-            modelRemoteDetails.setCustomName("My Box");
-        }
+        modelRemoteDetails.setCustomName(modelRemoteDetails.getCustomName());
+
         modelRemoteDetails.setGroupId(1);
 
         modelRemoteDetails.setGroupdName("Scene1");

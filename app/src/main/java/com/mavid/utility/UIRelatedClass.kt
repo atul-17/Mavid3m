@@ -5,22 +5,28 @@ import android.app.Dialog
 import android.content.Context
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.widget.AdapterView
 import android.widget.GridView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatButton
 import androidx.appcompat.widget.AppCompatEditText
+import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.core.content.ContextCompat
 import com.danimahardhika.cafebar.CafeBar
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.snackbar.Snackbar
+import com.google.gson.Gson
 import com.mavid.R
 import com.mavid.adapters.IRPopularOptionsSelectionBottomSheetAdapter
+import com.mavid.models.ModelRemoteDetails
+import com.mavid.models.ModelRemoteSubAndMacDetils
 
 class UIRelatedClass {
 
@@ -138,7 +144,8 @@ class UIRelatedClass {
 
     fun showBottomDialogForAddingCustomName(appCompatActivity: AppCompatActivity,
                                             onButtonClickCallbackWithStringParams: OnButtonClickCallbackWithStringParams,
-                                            popularOptionsHashMap: HashMap<String, String>, selectedAppliance: String, brandName: String) {
+                                            popularOptionsHashMap: HashMap<String, String>, userAlreadyUsedCustomNamesHashMap: HashMap<String, String>,
+                                            selectedAppliance: String, brandName: String, macId: String) {
 
         // Getting Collection of values from HashMap
         val values: Collection<String> = popularOptionsHashMap.keys
@@ -155,9 +162,16 @@ class UIRelatedClass {
 
         val etCustomName: AppCompatEditText = view.findViewById(R.id.etCustomName)
 
+        val ivCloseSheet: AppCompatImageView = view.findViewById(R.id.ivCloseSheet)
+
+        ivCloseSheet.setOnClickListener {
+            bottomSheetDialog?.dismiss()
+            appCompatActivity.finish()
+        }
+
         etCustomName.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(p0: Editable?) {
-                btnConfirm.isEnabled = !etCustomName.text.toString().isEmpty()
+                btnConfirm.isEnabled = etCustomName.text.toString().isNotEmpty()
             }
 
             override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
@@ -193,12 +207,97 @@ class UIRelatedClass {
         }
 
         btnConfirm.setOnClickListener {
-            bottomSheetDialog.dismiss()
-            onButtonClickCallbackWithStringParams.onUserClicked(etCustomName.text.toString())
+            if (checkIFUserIsUsingDIffNamesForTVorTVorAc(appCompatActivity, selectedAppliance, etCustomName.text.toString(), macId)) {
+                if (checkIfAParticluarOptionsIsAlreadyPresent(userAlreadyUsedCustomNamesHashMap, etCustomName.text.toString().toUpperCase(), macId)) {
+                    bottomSheetDialog.dismiss()
+                    onButtonClickCallbackWithStringParams.onUserClicked(etCustomName.text.toString().toUpperCase())
+                } else {
+                    //show a snackbar error
+//                buidCustomSnackBarWithButton(appCompatActivity,"","OK",appCompatActivity)
+                    Toast.makeText(appCompatActivity, "This name for your appliance is already used , please use a different one", Toast.LENGTH_LONG).show()
+                }
+            } else {
+                Toast.makeText(appCompatActivity, "This name for your appliance is already used , please use a different one", Toast.LENGTH_LONG).show()
+            }
         }
 
         bottomSheetDialog.show()
 
+    }
+
+
+    fun checkIFUserIsUsingDIffNamesForTVorTVorAc(appCompatActivity: AppCompatActivity, userSelectedApplianceType: String,
+                                                 userEditedName: String, macId: String): Boolean {
+        var sharedPreferences = appCompatActivity.getSharedPreferences("Mavid", Context.MODE_PRIVATE)
+
+        val gson = Gson()
+
+        var modelRemoteDetailsString = sharedPreferences?.getString("applianceInfoList", "")
+
+        var modelRemoteSubAndMacDetils = ModelRemoteSubAndMacDetils()
+
+
+        modelRemoteSubAndMacDetils = gson?.fromJson<ModelRemoteSubAndMacDetils>(modelRemoteDetailsString,
+                ModelRemoteSubAndMacDetils::class.java) as ModelRemoteSubAndMacDetils
+
+        if (modelRemoteSubAndMacDetils.mac == macId) {
+            when (userSelectedApplianceType) {
+                "1",
+                "TV" -> {
+                    val tvpCustomName = getTVPCustomName(modelRemoteSubAndMacDetils.modelRemoteDetailsList)
+                    if (tvpCustomName.isNotEmpty() && tvpCustomName.equals(userEditedName, true)) {
+                        return false
+                    }
+                }
+                "2",
+                "TVP" -> {
+                    val tvCustomName = getTVCustomName(modelRemoteSubAndMacDetils.modelRemoteDetailsList)
+                    if (tvCustomName.isNotEmpty() && tvCustomName.equals(userEditedName, true)) {
+                        return false
+                    }
+                }
+                "3",
+                "AC" -> {
+
+                }
+            }
+        }
+        return true
+    }
+
+    fun getTVCustomName(modelRemoteDetailsList: MutableList<ModelRemoteDetails>): String {
+        for (modelRemoteDetails: ModelRemoteDetails in modelRemoteDetailsList) {
+            if (modelRemoteDetails.selectedAppliance == "1" || modelRemoteDetails.selectedAppliance == "TV") {
+                return modelRemoteDetails.customName
+            }
+        }
+        return ""
+    }
+
+    fun getTVPCustomName(modelRemoteDetailsList: MutableList<ModelRemoteDetails>): String {
+        for (modelRemoteDetails: ModelRemoteDetails in modelRemoteDetailsList) {
+            if (modelRemoteDetails.selectedAppliance == "2" || modelRemoteDetails.selectedAppliance == "TVP") {
+                return modelRemoteDetails.customName
+            }
+        }
+        return ""
+    }
+
+    fun checkIfAParticluarOptionsIsAlreadyPresent(userAlreadyUsedCustomNamesHashMap: HashMap<String, String>,
+                                                  userEditedCustomName: String, macId: String): Boolean {
+
+        for (preDefinedHashMapObject: Map.Entry<String, String> in userAlreadyUsedCustomNamesHashMap) {
+
+            if (preDefinedHashMapObject.value != macId) {
+                //check if the mac is diff from the ones present in the
+                if (preDefinedHashMapObject.key.equals(userEditedCustomName, true)) {
+                    //ie then the user that name for the appliance ie tv.tvp
+                    //for a diffrent device then show an error to the user
+                    return false
+                }
+            }
+        }
+        return true
     }
 
     fun setDefaultCustomName(popularOptionsHashMap: HashMap<String, String>, selectedAppliance: String, brandName: String): String {
@@ -207,12 +306,13 @@ class UIRelatedClass {
         when (selectedAppliance) {
             "TV" -> {
                 defaultCustomName = when {
+
                     popularOptionsHashMap.containsKey("TV") -> {
                         "TV"
                     }
-                    popularOptionsHashMap.containsKey("$brandName $selectedAppliance") -> {
+                    popularOptionsHashMap.containsKey("${brandName.toUpperCase()} $selectedAppliance") -> {
                         //ie LG TV / Samsung TV
-                        "$brandName $selectedAppliance"
+                        "${brandName.toUpperCase()} $selectedAppliance"
                     }
                     else -> {
                         ""
@@ -221,11 +321,11 @@ class UIRelatedClass {
             }
             "TVP" -> {
 
-                if (popularOptionsHashMap.containsKey("My Box")) {
-                    defaultCustomName = "My Box"
-                } else if (popularOptionsHashMap.containsKey("$brandName Set Top Box")) {
-                    //ie Airtel Set top box,Tata Sky Set top box
-                    defaultCustomName = "$brandName Set Top Box"
+                if (popularOptionsHashMap.containsKey("SETTOP BOX")) {
+                    defaultCustomName = "SETTOP BOX"
+                } else if (popularOptionsHashMap.containsKey("${brandName.toUpperCase()} SETTOP BOX")) {
+                    //ie Airtel Settop box,Tata Sky Settop box
+                    defaultCustomName = "${brandName.toUpperCase()} SETTOP BOX"
                 } else {
                     defaultCustomName = ""
                 }

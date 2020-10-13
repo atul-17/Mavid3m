@@ -29,6 +29,8 @@ import kotlinx.android.synthetic.main.activity_ir_tv_remote_selection.*
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
 class IRTvRemoteSelectionActivity : BaseActivity() {
 
@@ -57,6 +59,8 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
     var selectedApplianceType = ""
 
+    var customNamesHashMap: HashMap<String, String> = HashMap()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_ir_tv_remote_selection)
@@ -82,22 +86,42 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
     }
 
-    fun addUserCustomNamesToHashMap(applianceInfoJsonObject: JSONObject?, applianceJSONArray: JSONArray?): HashMap<String, String> {
 
-        var customNamesHashMap: HashMap<String, String> = HashMap()
-
+    fun getCustomName(applianceInfoJsonObject: JSONObject?): String {
         if (applianceInfoJsonObject != null) {
             try {
-                customNamesHashMap[applianceInfoJsonObject.getString("CustomName")] = "1"
+                return applianceInfoJsonObject.getString("CustomName")
             } catch (e: JSONException) {
                 e.printStackTrace()
             }
-        } else {
-            if (applianceJSONArray != null) {
-                for (i in 0 until applianceJSONArray.length()) {
-                    val applianceInfoObject = applianceJSONArray[i] as JSONObject
-                    customNamesHashMap[applianceInfoObject.getString("CustomName")] = "1"
+        }
+        return ""
+    }
+
+    fun addUserCustomNamesToHashMap(bodyJsonObject: JSONObject?, bodyJsonArray: JSONArray?): HashMap<String, String> {
+
+        if (bodyJsonObject != null) {
+            //this means ther user has only one device in his account
+            val applianceJsonObject: JSONObject? = bodyJsonObject.optJSONObject("Appliance")
+            if (applianceJsonObject != null) {
+                //user has only one appliance
+                customNamesHashMap[getCustomName(applianceJsonObject)] = bodyJsonObject.getString("Mac")
+            } else {
+                val applianceJsonArray: JSONArray? = bodyJsonObject.optJSONArray("Appliance")
+                if (applianceJsonArray != null) {
+                    for (i in 0 until applianceJsonArray.length()) {
+                        //user has more than one device
+                        customNamesHashMap[getCustomName(applianceJsonArray[i] as JSONObject)] = bodyJsonObject.getString("Mac")
+                    }
                 }
+            }
+
+        } else if (bodyJsonArray != null) {
+            //this means user has more than device in
+            //his account
+            for (j in 0 until bodyJsonArray.length()) {
+                val bodyJsonObject = bodyJsonArray[j] as JSONObject
+                addUserCustomNamesToHashMap(bodyJsonObject, null)
             }
         }
         return customNamesHashMap
@@ -108,7 +132,7 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
         val requestQueue = Volley.newRequestQueue(this@IRTvRemoteSelectionActivity)
 
-        val baseUrl = "https://op4w1ojeh4.execute-api.us-east-1.amazonaws.com/Beta/usermangement?" + "sub=" + sub + "&Mac=" + deviceInfo!!.usn
+        val baseUrl = "https://op4w1ojeh4.execute-api.us-east-1.amazonaws.com/Beta/usermangement?sub=$sub"
 
         Log.d(TAG, "requestedURl: $baseUrl")
 
@@ -124,40 +148,22 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
             val bodyJsonObject: JSONObject? = responseObject.optJSONObject("body")
 
             if (bodyJsonObject != null) {
-                val applianceJsonObject = bodyJsonObject.optJSONObject("Appliance")
-                if (applianceJsonObject != null) {
-                    userAddedCustomNamesHashMap = addUserCustomNamesToHashMap(applianceJsonObject, null)
-                } else {
-                    //might be an array
-                    val applianceJsonArray = bodyJsonObject.optJSONArray("Appliance")
-                    if (applianceJsonArray != null) {
-                        if (applianceJsonArray.length() > 0) {
-                            userAddedCustomNamesHashMap = addUserCustomNamesToHashMap(null, applianceJsonArray)
-                        }
-                    }
-                }
+
+                userAddedCustomNamesHashMap = addUserCustomNamesToHashMap(bodyJsonObject, null)
+
             } else {
                 //body key value is a json array
+                //user has added more than one device
                 val bodyJsonArray: JSONArray? = responseObject.optJSONArray("body")
+
                 if (bodyJsonArray != null) {
-                    if (bodyJsonArray.length() > 0) {
-                        //appliance key might be json obejct
-                        val applianceJsonObject: JSONObject? = bodyJsonObject?.optJSONObject("Appliance")
-                        if (applianceJsonObject != null) {
-                            userAddedCustomNamesHashMap = addUserCustomNamesToHashMap(applianceJsonObject, null)
-                        } else {
-                            //might be an array
-                            val applianceJsonArray: JSONArray? = bodyJsonObject?.optJSONArray("Appliance")
-                            if (applianceJsonArray != null) {
-                                if (applianceJsonArray.length() > 0) {
-                                    userAddedCustomNamesHashMap = addUserCustomNamesToHashMap(null, applianceJsonArray)
-                                }
-                            }
-                        }
-                    }
+                    userAddedCustomNamesHashMap = addUserCustomNamesToHashMap(null, bodyJsonArray)
                 }
 
             }
+
+            Log.d(TAG, "customHashMap: ".plus(customNamesHashMap))
+
             onCallingGetApiToGetCustomNames.onResponse(userAddedCustomNamesHashMap)
         }, Response.ErrorListener { volleyError ->
             if (volleyError is TimeoutError || volleyError is NoConnectionError) {
@@ -195,15 +201,15 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
             "TV"
             -> {
                 //tv
-                popularOptionsHashMap[applianceType] = "1"
+                popularOptionsHashMap[applianceType] = deviceInfo!!.usn
                 applianceType = "TV"
             }
             "2",
             "TVP"
             -> {
                 //tvp
-                popularOptionsHashMap["My Box"] = "1"
-                applianceType = "Set Top Box"
+                popularOptionsHashMap["SETTOP BOX"] = deviceInfo!!.usn
+                applianceType = "SETTOP BOX"
             }
             "3" -> {
                 //ac
@@ -211,13 +217,14 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
         }
 
 
-        popularOptionsHashMap["Living Room $applianceType"] = "1"
+        //Living Room
+        popularOptionsHashMap["LIVING ROOM $applianceType"] = deviceInfo!!.usn
 
-        popularOptionsHashMap["$brandName $applianceType"] = "1"
+        popularOptionsHashMap["${brandName.toUpperCase()} $applianceType"] = deviceInfo!!.usn
 
-        popularOptionsHashMap["BED room $applianceType"] = "1"
+        popularOptionsHashMap["BED ROOM $applianceType"] = deviceInfo!!.usn
 
-        popularOptionsHashMap["Office $applianceType"] = "1"
+        popularOptionsHashMap["OFFICE $applianceType"] = deviceInfo!!.usn
 
         return popularOptionsHashMap
     }
@@ -228,11 +235,19 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
         var mutableIterator = preDefinedPopularOptionsHashMap.iterator()
 
+
         for (preDefinedHashMapObject: Map.Entry<String, String> in mutableIterator) {
-            if (customNamesUserIsUsingList.containsKey(preDefinedHashMapObject.key)) {
-                //ie then the user that name for the appliance ie tv.tvp
-                //so remove from the suggested options
-                mutableIterator.remove()
+
+            for (customNamesHashMap: Map.Entry<String, String> in customNamesUserIsUsingList) {
+                if (customNamesHashMap.key == (preDefinedHashMapObject.key)) {
+                    //check if the mac is diff from the ones present in the
+                    if (customNamesHashMap.value != deviceInfo?.usn) {
+                        //ie then the user that name for the appliance ie tv.tvp
+                        //for a diffrent device then only then remove it
+                        Log.d(TAG, "deletedCustomName: ".plus(preDefinedHashMapObject.key))
+                        mutableIterator.remove()
+                    }
+                }
             }
         }
         return preDefinedPopularOptionsHashMap
