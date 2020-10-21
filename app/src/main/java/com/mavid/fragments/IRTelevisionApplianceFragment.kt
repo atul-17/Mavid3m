@@ -12,9 +12,8 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.mavid.R
 import com.mavid.irActivites.IRAddRemoteVPActivity
-import com.mavid.irActivites.IRSelectTvAndTVPRegionalBrandsActivity
+import com.mavid.irActivites.IRSelectTvOrTVPOrAcRegionalBrandsActivity
 import com.mavid.libresdk.LibreMavidHelper
-import com.mavid.models.ModelRemoteDetails
 import com.mavid.utility.OnRemoteKeyPressedInterface
 import kotlinx.android.synthetic.main.fragment_ir_television_appliance.*
 
@@ -71,9 +70,10 @@ class IRTelevisionApplianceFragment : Fragment(), View.OnClickListener {
         myHandler.sendEmptyMessage(DISABLE_REMOTE_BUTTONS)
 
         tvSelectTV.setOnClickListener {
-            val intent = Intent(activity, IRSelectTvAndTVPRegionalBrandsActivity::class.java)
+            val intent = Intent(activity, IRSelectTvOrTVPOrAcRegionalBrandsActivity::class.java)
             val bundle = Bundle()
             bundle.putSerializable("deviceInfo", getActivityObject()?.deviceInfo)
+            bundle.putBoolean("isTv",true)
             intent.putExtras(bundle)
             startActivity(intent)
         }

@@ -14,6 +14,7 @@ import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import androidx.appcompat.widget.AppCompatTextView;
 
+import android.os.Message;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -77,6 +78,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 
 public class DeviceListFragment extends Fragment implements OnButtonClickListViewInterface {
@@ -481,6 +484,9 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
             });
         }
     }
+
+
+
 
     public void setDeviceListenerInterface() {
         try {
@@ -972,6 +978,8 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
                     modelRemoteDetails.setCustomName("TV");
                 } else if (modelRemoteDetails.getSelectedAppliance().equals("2") || modelRemoteDetails.getSelectedAppliance().equals("TVP")) {
                     modelRemoteDetails.setCustomName("My Box");
+                } else if (modelRemoteDetails.getSelectedAppliance().equals("3") || modelRemoteDetails.getSelectedAppliance().equals("AC")) {
+                    modelRemoteDetails.setCustomName("AC");
                 }
 
                 modelRemoteDetails.setBrandId(String.valueOf(applianceJsonObject.getInt("bId")));
@@ -986,7 +994,7 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
     }
 
 
-    private void deleteTvORTvpDetailsInSharedPref(String macId) {
+    private void deleteTvORTvpORACDetailsInSharedPref(String macId) {
         SharedPreferences sharedPreferences = getActivity().getSharedPreferences("Mavid", Context.MODE_PRIVATE);
 
         Gson gson = new Gson();
@@ -1064,7 +1072,7 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
                                         } else {
                                             JSONArray applianceJsonArray = bodyJsonObject.optJSONArray("Appliance");
                                             //deleteAll the data present in the app
-                                            deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
+                                            deleteTvORTvpORACDetailsInSharedPref(deviceInfo.getUSN());
 
                                             for (int i = 0; i < applianceJsonArray.length(); i++) {
                                                 /**
@@ -1128,7 +1136,7 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
                             } else {
                                 JSONArray applianceJsonArray = bodyJsonObject.optJSONArray("Appliance");
 
-                                deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
+                                deleteTvORTvpORACDetailsInSharedPref(deviceInfo.getUSN());
 
                                 for (int i = 0; i < applianceJsonArray.length(); i++) {
                                     /**
@@ -1151,6 +1159,7 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
 
     private boolean commpareMavidDeviceDataAndAppData(HashMap<ModelRemoteDetails, String> mavidApplianceInfoHashMapList, HashMap<ModelRemoteDetails, String> appApplianceInfoHashmapList) {
         for (Map.Entry<ModelRemoteDetails, String> mavidApplianceHashMap : mavidApplianceInfoHashMapList.entrySet()) {
+
             if (appApplianceInfoHashmapList.containsKey(mavidApplianceHashMap.getKey())) {
                 return true;
             }
@@ -1196,6 +1205,8 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
                 modelRemoteDetails.setSelectedAppliance("1");
             } else if (applianceObject.get("Appliance").equals("TVP")) {
                 modelRemoteDetails.setSelectedAppliance("2");
+            } else if (applianceObject.get("Appliance").equals("AC")) {
+                modelRemoteDetails.setSelectedAppliance("3");
             }
             modelRemoteDetails.setCustomName(applianceObject.getString("CustomName"));
 
@@ -1245,7 +1256,7 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
                                 //if cloud data is also empty—first time user—Go ahead with normal flowr
 
                                 //deleteAll the data present in the app if cloud has no data
-                                deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
+                                deleteTvORTvpORACDetailsInSharedPref(deviceInfo.getUSN());
 
                                 gotoIRAddRemoteVPActivity(deviceInfo);
                             }
@@ -1277,7 +1288,7 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
                                         //if cloud data is also empty—first time user—Go ahead with normal flowr
 
                                         //deleteAll the data present in the app if cloud has no data
-                                        deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
+                                        deleteTvORTvpORACDetailsInSharedPref(deviceInfo.getUSN());
 
                                         gotoIRAddRemoteVPActivity(deviceInfo);
                                     }
@@ -1287,7 +1298,7 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
                                 //if cloud data is also empty—first time user—Go ahead with normal flowr
 
                                 //deleteAll the data present in the app if cloud has no data
-                                deleteTvORTvpDetailsInSharedPref(deviceInfo.getUSN());
+                                deleteTvORTvpORACDetailsInSharedPref(deviceInfo.getUSN());
 
                                 gotoIRAddRemoteVPActivity(deviceInfo);
                             }
@@ -1379,7 +1390,7 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
 
                 modelRemoteSubAndMacDetils.setMac(macId);
 
-                List<ModelRemoteDetails> appllianceInfoList = new ArrayList();
+                List<ModelRemoteDetails> appllianceInfoList = new ArrayList<ModelRemoteDetails>();
 
                 appllianceInfoList.add(buidlRemoteDetails(modelRemoteDetails));
 
@@ -1393,7 +1404,7 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
 
             modelRemoteSubAndMacDetils.setMac(macId);
 
-            List<ModelRemoteDetails> appllianceInfoList = new ArrayList();
+            List<ModelRemoteDetails> appllianceInfoList = new ArrayList<ModelRemoteDetails>();
 
             appllianceInfoList.add(buidlRemoteDetails(modelRemoteDetails));
 
@@ -1404,8 +1415,11 @@ public class DeviceListFragment extends Fragment implements OnButtonClickListVie
         modelRemoteDetailsString = gson.toJson(modelRemoteSubAndMacDetils);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("applianceInfoList", modelRemoteDetailsString);
+
         editor.apply();
     }
+
+
 
 
     private ModelRemoteDetails buidlRemoteDetails(ModelRemoteDetails modelRemoteDetails) {

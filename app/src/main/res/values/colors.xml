@@ -13,6 +13,7 @@
 
 
 
+
     //alexa app colors
     <color name="faint_grey" type="color">#F5F5F5</color>
     <color name="dark_grey" type="color">#4D4D4D</color>
@@ -27,6 +28,8 @@
     <color name="brand_red" type="color">#DA372A</color>
     <color name="brand_purple" type="color">#788294</color>
 
+
+    <color name="div_line_color">#E3E2E2</color>
 
     <color name="red_light"> #f0afa9</color>
 

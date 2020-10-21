@@ -47,25 +47,35 @@ class IRRemoteSelectionInstrActivity : AppCompatActivity() {
             "2",
             "TVP"
             -> {
-                tvHeading.text = "Set Top Box. Remote Selection"
+                tvHeading.text = "Set Top Box Remote Selection"
                 tvInstructionsMsg.text = applianceBrandName.plus(" Set Top Box have several remotes available , please follow the instructions to select the remote that suits your Set Top Box")
             }
             "3" -> {
                 //ac
+                tvHeading.text = "AC Remote Selection"
+                tvInstructionsMsg.text = applianceBrandName.plus(" AC have several remotes available , please follow the instructions to select the remote that suits your AC")
+
             }
         }
 
 
         btnNext.setOnClickListener {
-            val intent = Intent(this@IRRemoteSelectionInstrActivity, IRTvRemoteSelectionActivity::class.java)
             val bundle = Bundle()
             bundle.putInt("applianceId", applianceId)
             bundle.putString("applianceBrandName", applianceBrandName)
             bundle.putString("ipAddress", ipAddress)
             bundle.putSerializable("deviceInfo", deviceInfo)
             bundle.putString("selectedApplianceType", selectedApplianceType)
-            intent.putExtras(bundle)
-            startActivity(intent)
+            if (selectedApplianceType == "3") {
+                val intent = Intent(this@IRRemoteSelectionInstrActivity, IRAcRemoteSelectionActivity::class.java)
+                intent.putExtras(bundle)
+                startActivity(intent)
+            } else {
+                val intent = Intent(this@IRRemoteSelectionInstrActivity, IRTvOrTvpRemoteSelectionActivity::class.java)
+                intent.putExtras(bundle)
+                startActivity(intent)
+            }
+
             finish()
         }
     }

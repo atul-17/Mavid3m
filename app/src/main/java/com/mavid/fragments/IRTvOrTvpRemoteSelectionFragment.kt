@@ -18,8 +18,8 @@ import com.android.volley.toolbox.Volley
 import com.google.gson.Gson
 import com.mavid.R
 import com.mavid.irActivites.IRAddRemoteVPActivity
-import com.mavid.irActivites.IRSelectTvAndTVPRegionalBrandsActivity
-import com.mavid.irActivites.IRTvRemoteSelectionActivity
+import com.mavid.irActivites.IRSelectTvOrTVPOrAcRegionalBrandsActivity
+import com.mavid.irActivites.IRTvOrTvpRemoteSelectionActivity
 import com.mavid.irActivites.IRTvpBrandActivity
 import com.mavid.libresdk.LibreMavidHelper
 import com.mavid.libresdk.TaskManager.Communication.Listeners.CommandStatusListenerWithResponse
@@ -35,7 +35,7 @@ import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
-class IRTvRemoteSelectionFragment : Fragment() {
+class IRTvOrTvpRemoteSelectionFragment : Fragment() {
 
     var bundle = Bundle()
 
@@ -46,7 +46,7 @@ class IRTvRemoteSelectionFragment : Fragment() {
     var level: Int = 1
 
 
-    val TAG = IRTvRemoteSelectionFragment::class.java.simpleName
+    val TAG = IRTvOrTvpRemoteSelectionFragment::class.java.simpleName
 
     var modelLevelCode: ModelLevelCode? = null
 
@@ -149,7 +149,7 @@ class IRTvRemoteSelectionFragment : Fragment() {
                                         level += 1//inc level
                                         //and add one more fragment on top of the old fragment
                                         if (modelLevelCode?.subLevelJsonArray != null) {
-                                            (activity as IRTvRemoteSelectionActivity?)?.creteNewFragment("fragment".plus(level),
+                                            (activity as IRTvOrTvpRemoteSelectionActivity?)?.creteNewFragment("fragment".plus(level),
                                                     getActivityObject()!!.parseLevelData(modelLevelCode?.subLevelJsonArray!!, ModelLevelData(), level, 0))
                                         } else {
                                             //send the id to the cloud/device
@@ -299,6 +299,7 @@ class IRTvRemoteSelectionFragment : Fragment() {
                 //tv
                 tvHeading.text = "TV Remote Selection"
                 tvRemoteSelectionInstrs.text = "Tap the below button and confirm whether TV responds"
+                tvMessageNonPowerButton.text = "If TV is not powered on , please power it on using the original remote"
             }
             "2",
             "TVP" -> {
@@ -306,6 +307,7 @@ class IRTvRemoteSelectionFragment : Fragment() {
                 //tv
                 tvHeading.text = "Set Top Box Remote Selection"
                 tvRemoteSelectionInstrs.text = "Tap the below button and confirm whether Set Top Box responds"
+                tvMessageNonPowerButton.text = "If Set Top Box is not powered on , please power it on using the original remote"
             }
             "3",
             "AC" -> {
@@ -524,9 +526,9 @@ class IRTvRemoteSelectionFragment : Fragment() {
             0
     }
 
-    fun getActivityObject(): IRTvRemoteSelectionActivity? {
+    fun getActivityObject(): IRTvOrTvpRemoteSelectionActivity? {
         if (activity != null) {
-            return activity as IRTvRemoteSelectionActivity
+            return activity as IRTvOrTvpRemoteSelectionActivity
         }
         return null
     }
@@ -789,7 +791,7 @@ class IRTvRemoteSelectionFragment : Fragment() {
         getActivityObject()?.dismissLoader()
 
         IRAddRemoteVPActivity.irAddRemoteVPActivity?.finish()
-        IRSelectTvAndTVPRegionalBrandsActivity.irSelectTvAndTVPRegionalBrandsActivity?.finish()
+        IRSelectTvOrTVPOrAcRegionalBrandsActivity.irSelectTvOrTVPOrAcRegionalBrandsActivity?.finish()
         IRTvpBrandActivity.irTvpBrandActivity?.finish()
 
         val intent = Intent(getActivityObject()!!, IRAddRemoteVPActivity::class.java)

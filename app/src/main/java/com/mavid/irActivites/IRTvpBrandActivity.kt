@@ -11,15 +11,12 @@ import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.android.volley.*
 import com.mavid.R
-import com.mavid.adapters.IRSelectTvBrandsAdapter
 import com.mavid.adapters.IrSelectTvpBrandsAdapter
 import com.mavid.libresdk.TaskManager.Discovery.Listeners.ListenerUtils.DeviceInfo
-import com.mavid.models.ModelGetTvpBodyResponse
 import com.mavid.models.ModelGetTvpBrandsSucessResponse
 import com.mavid.utility.RecyclerItemClickListener
 import com.mavid.utility.UIRelatedClass
 import com.mavid.viewmodels.ApiViewModel
-import kotlinx.android.synthetic.main.activity_ir_select_tv_or_tvp_regional_brands.*
 import kotlinx.android.synthetic.main.ir_tvp_brand_activity_layout.*
 import kotlinx.android.synthetic.main.ir_tvp_brand_activity_layout.progressBar
 
@@ -132,7 +129,7 @@ class IRTvpBrandActivity : AppCompatActivity() {
 
             override fun onItemClick(view: View?, position: Int) {
                 //taking the user for regional tvp selection screen
-                val intent = Intent(this@IRTvpBrandActivity, IRSelectTvAndTVPRegionalBrandsActivity::class.java)
+                val intent = Intent(this@IRTvpBrandActivity, IRSelectTvOrTVPOrAcRegionalBrandsActivity::class.java)
                 val bundle = Bundle()
                 bundle.putSerializable("deviceInfo", deviceInfo)
                 bundle.putString("tvpBrandId", modelGetTvpBrandsSucessResponseList[position].id.toString())

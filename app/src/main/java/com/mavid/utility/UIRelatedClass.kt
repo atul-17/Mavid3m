@@ -236,29 +236,34 @@ class UIRelatedClass {
 
         var modelRemoteSubAndMacDetils = ModelRemoteSubAndMacDetils()
 
+        if (modelRemoteDetailsString != null) {
 
-        modelRemoteSubAndMacDetils = gson?.fromJson<ModelRemoteSubAndMacDetils>(modelRemoteDetailsString,
-                ModelRemoteSubAndMacDetils::class.java) as ModelRemoteSubAndMacDetils
+            if (modelRemoteDetailsString!!.isNotEmpty()) {
 
-        if (modelRemoteSubAndMacDetils.mac == macId) {
-            when (userSelectedApplianceType) {
-                "1",
-                "TV" -> {
-                    val tvpCustomName = getTVPCustomName(modelRemoteSubAndMacDetils.modelRemoteDetailsList)
-                    if (tvpCustomName.isNotEmpty() && tvpCustomName.equals(userEditedName, true)) {
-                        return false
+                modelRemoteSubAndMacDetils = gson?.fromJson<ModelRemoteSubAndMacDetils>(modelRemoteDetailsString,
+                        ModelRemoteSubAndMacDetils::class.java) as ModelRemoteSubAndMacDetils
+
+                if (modelRemoteSubAndMacDetils.mac == macId) {
+                    when (userSelectedApplianceType) {
+                        "1",
+                        "TV" -> {
+                            val tvpCustomName = getTVPCustomName(modelRemoteSubAndMacDetils.modelRemoteDetailsList)
+                            if (tvpCustomName.isNotEmpty() && tvpCustomName.equals(userEditedName, true)) {
+                                return false
+                            }
+                        }
+                        "2",
+                        "TVP" -> {
+                            val tvCustomName = getTVCustomName(modelRemoteSubAndMacDetils.modelRemoteDetailsList)
+                            if (tvCustomName.isNotEmpty() && tvCustomName.equals(userEditedName, true)) {
+                                return false
+                            }
+                        }
+                        "3",
+                        "AC" -> {
+
+                        }
                     }
-                }
-                "2",
-                "TVP" -> {
-                    val tvCustomName = getTVCustomName(modelRemoteSubAndMacDetils.modelRemoteDetailsList)
-                    if (tvCustomName.isNotEmpty() && tvCustomName.equals(userEditedName, true)) {
-                        return false
-                    }
-                }
-                "3",
-                "AC" -> {
-
                 }
             }
         }
@@ -361,7 +366,7 @@ class UIRelatedClass {
 
             tv_alert_title.text = "Are you sure?"
 
-            tv_alert_message.text = "This will delete the your already configured appliance. "
+            tv_alert_message.text = "This will delete  your already configured appliance. "
 
             btn_cancel.setOnClickListener {
                 alert.dismiss()

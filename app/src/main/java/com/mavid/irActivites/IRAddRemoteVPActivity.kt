@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.os.Handler
+import android.os.Message
 import android.util.Log
 import android.view.View
 import android.view.Window
@@ -24,7 +26,6 @@ import com.mavid.libresdk.LibreMavidHelper
 import com.mavid.libresdk.TaskManager.Communication.Listeners.CommandStatusListenerWithResponse
 import com.mavid.libresdk.TaskManager.Discovery.Listeners.ListenerUtils.DeviceInfo
 import com.mavid.libresdk.TaskManager.Discovery.Listeners.ListenerUtils.MessageInfo
-import com.mavid.models.ModelGetUserDetailsAppliance
 import com.mavid.models.ModelRemoteDetails
 import com.mavid.models.ModelRemoteSubAndMacDetils
 import com.mavid.utility.OnRemoteKeyPressedInterface
@@ -32,7 +33,10 @@ import com.mavid.utility.UIRelatedClass
 import com.mavid.viewmodels.ApiViewModel
 import kotlinx.android.synthetic.main.activity_ir_add_remote_vp.*
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
+import java.util.*
+import kotlin.collections.ArrayList
 
 
 class IRAddRemoteVPActivity : AppCompatActivity() {
@@ -42,24 +46,17 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
     // tab titles
     private var titles: MutableList<String> = ArrayList()
 
-    private var selectedSetupBox = "Not Set"
-    private var selectedTv = "Not Set"
-    private var selectedAc = "Not Set"
-
-
     lateinit var progressDialog: Dialog
 
     var bundle = Bundle()
+
     var deviceInfo: DeviceInfo? = null
 
-
     var uIRelatedClass = UIRelatedClass()
+
     lateinit var frameContent: FrameLayout
 
     lateinit var sharedPreferences: SharedPreferences
-
-    var userRemoteDetailsList: MutableList<ModelGetUserDetailsAppliance> = ArrayList()
-
 
     var selectedAppliance = "2"//by default tvp
 
@@ -69,9 +66,16 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
     var tvpSelectedBrand = ""
     var tvpRemoteId = ""
 
+
+    var acSelectedBrand = ""
+    var acRemoteId = ""
+
+
     var modelTvRemoteDetails = ModelRemoteDetails()
 
     var modelTvpRemoteDetails = ModelRemoteDetails()
+
+    var modelAcRemoteDetails = ModelRemoteDetails()
 
     var gson: Gson? = Gson()
 
@@ -84,7 +88,33 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
         var irAddRemoteVPActivity: IRAddRemoteVPActivity? = null
     }
 
+
+    val LDAPI2_TIMOUT = 1
+
+    var irButtonListTimerTask: Timer? = Timer()
+
     var modelRemoteSubAndMacDetils = ModelRemoteSubAndMacDetils()
+
+    var workingRemoteButtonsHashMap = HashMap<String, String>()
+
+    val uiRelatedClass = UIRelatedClass()
+
+    var myHandler: Handler = object : Handler() {
+        override fun handleMessage(msg: Message) {
+            val what = msg.what
+            when (msg.what) {
+                LDAPI2_TIMOUT -> runOnUiThread(Runnable {
+                    dismissLoader()
+                    if (irButtonListTimerTask != null) {
+                        irButtonListTimerTask!!.cancel()
+                    }
+                    Log.d(TAG, "Error")
+                    uiRelatedClass.buidCustomSnackBarWithButton(this@IRAddRemoteVPActivity, "There sees to be an error!!.Please try after some time",
+                            "Go Back", this@IRAddRemoteVPActivity)
+                })
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -124,7 +154,6 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
 
         appliancesSelectionVp.adapter = ApplianceFragmentAdapter(this@IRAddRemoteVPActivity, titles.toList())
 
-
         // attaching tab mediator
         TabLayoutMediator(tabLayout, appliancesSelectionVp) { tab, position ->
             tab.setCustomView(R.layout.custom_tab_view_layout)
@@ -155,22 +184,29 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
                 1 -> {
                     //tv
                     tvBrandName?.text = tvSelectedBrand
-
                     ivShowBrands?.setOnClickListener {
-                        val intent = Intent(this@IRAddRemoteVPActivity, IRSelectTvAndTVPRegionalBrandsActivity::class.java)
+                        val intent = Intent(this@IRAddRemoteVPActivity, IRSelectTvOrTVPOrAcRegionalBrandsActivity::class.java)
                         val bundle = Bundle()
                         bundle.putSerializable("deviceInfo", deviceInfo)
+                        bundle.putBoolean("isTv", true)
                         intent.putExtras(bundle)
                         startActivity(intent)
                     }
                 }
                 2 -> {
                     //ac
-                    tvBrandName?.text = selectedAc
+                    tvBrandName?.text = acSelectedBrand
+                    ivShowBrands?.setOnClickListener {
+                        val intent = Intent(this@IRAddRemoteVPActivity, IRSelectTvOrTVPOrAcRegionalBrandsActivity::class.java)
+                        val bundle = Bundle()
+                        bundle.putSerializable("deviceInfo", deviceInfo);
+                        bundle.putBoolean("isAc", true)
+                        intent.putExtras(bundle)
+                        startActivity(intent)
+                    }
                 }
             }
         }.attach()
-
 
 
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
@@ -195,7 +231,6 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
                     }
                 }
             }
-
         })
 
         appliancesSelectionVp.currentItem = selectedTabIndex
@@ -238,6 +273,11 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
                         tvRemoteId = modelTvRemoteDetails.remoteId
 
                         tvSelectedBrand = modelTvRemoteDetails.selectedBrandName
+                        //tv data is there check if we have remoteButtons in internal storage
+                        if (!checkIfWeHaveWorkingTVRemoteButtonsIntheApp()) {
+                            showProgressBar()
+                            timerTaskToReadDeviceStatus(deviceInfo?.ipAddress, tvRemoteId.toInt(), modelRemoteDetails.selectedAppliance)
+                        }
 
                     } else if (modelRemoteDetails.selectedAppliance == "2" || modelRemoteDetails.selectedAppliance == "TVP") {
 
@@ -246,6 +286,20 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
                         tvpRemoteId = modelTvpRemoteDetails.remoteId
 
                         tvpSelectedBrand = modelTvpRemoteDetails.selectedBrandName
+
+                        //tvp data is there check if we have remoteButtons in internal storage
+                        if (!checkIfWeHaveWorkingTVPRemoteButtonsIntheApp()) {
+                            showProgressBar()
+                            timerTaskToReadDeviceStatus(deviceInfo?.ipAddress, tvpRemoteId.toInt(), modelRemoteDetails.selectedAppliance)
+                        }
+
+                    } else if (modelRemoteDetails.selectedAppliance == "3" || modelRemoteDetails.selectedAppliance == "AC") {
+                        //ac
+                        modelAcRemoteDetails = modelRemoteDetails
+                        acRemoteId = modelRemoteDetails.remoteId
+                        acSelectedBrand = modelAcRemoteDetails.selectedBrandName
+
+                        //TODO:Ldapi2 is no yet implemented in device side as of now update once done
                     }
                 }
 
@@ -260,38 +314,36 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
 
     }
 
+
+    fun checkIfWeHaveWorkingTVRemoteButtonsIntheApp(): Boolean {
+        if (getSharedPreferences("Mavid", Context.MODE_PRIVATE) != null) {
+            if (getSharedPreferences("Mavid", Context.MODE_PRIVATE).getString("workingTVRemoteButtons", "").isNotEmpty()) {
+                return true
+            }
+        }
+        return false
+    }
+
+
+    fun checkIfWeHaveWorkingTVPRemoteButtonsIntheApp(): Boolean {
+        if (getSharedPreferences("Mavid", Context.MODE_PRIVATE) != null) {
+            if (getSharedPreferences("Mavid", Context.MODE_PRIVATE).getString("workingTVPRemoteButtons", "").isNotEmpty()) {
+                return true
+            }
+        }
+        return false
+    }
+
+
     fun setDefaultApplianceInfo() {
         tvpRemoteId = "0"
         tvpSelectedBrand = "Not Set"
 
         tvRemoteId = "0"
         tvSelectedBrand = "Not Set"
-    }
 
-
-    fun setTVRemoteDetails() {
-
-        //getting from the local storage
-        val modelTvRemoteDetailsString: String = sharedPreferences.getString("tvRemoteDetails", "")
-
-        //remote is already configured
-        //there is no remote configured from local storage
-        when {
-            modelTvRemoteDetailsString.isNotEmpty() -> {
-
-                gson = Gson()
-
-                appliancesSelectionVp.visibility = View.VISIBLE
-
-                modelTvRemoteDetails = gson?.fromJson<ModelRemoteDetails>(modelTvRemoteDetailsString, ModelRemoteDetails::class.java) as ModelRemoteDetails
-
-
-            }
-
-            else -> {
-
-            }
-        }
+        acRemoteId = "0"
+        acSelectedBrand = "Not Set"
     }
 
 
@@ -320,7 +372,9 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
 
     fun showProgressBar() {
         runOnUiThread {
-            progressDialog.show()
+            if (!progressDialog.isShowing) {
+                progressDialog.show()
+            }
         }
     }
 
@@ -330,6 +384,116 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Call the LDAPI#2 every 3 seconds and check the status
+     */
+    fun timerTaskToReadDeviceStatus(ipdAddress: String?, remoteId: Int, selectedApplianceType: String) {
+
+        myHandler.sendEmptyMessageDelayed(LDAPI2_TIMOUT, 25000)
+        irButtonListTimerTask!!.schedule(object : TimerTask() {
+            override fun run() {
+                Log.d(TAG, "calling_Ldapi#2_every_5_secs")
+                getButtonPayload(ipdAddress, remoteId, selectedApplianceType)
+            }
+        }, 0, 5000)
+    }
+
+    fun getButtonPayload(ipdAddress: String?, remoteId: Int, selectedApplianceType: String) {
+        LibreMavidHelper.sendCustomCommands(ipdAddress, LibreMavidHelper.COMMANDS.SEND_IR_REMOTE_DETAILS_AND_RETRIVING_BUTTON_LIST,
+                buildPayloadForRemoteJsonListForLdapi2(remoteId, selectedApplianceType).toString(), object : CommandStatusListenerWithResponse {
+            override fun response(messageInfo: MessageInfo) {
+                Log.d(TAG, "ldapi#2_" + messageInfo.message)
+                try {
+                    val responseJSONObject = JSONObject(messageInfo.message)
+                    val statusCode = responseJSONObject.getInt("Status")
+                    when (statusCode) {
+                        3 -> {
+                            myHandler.removeCallbacksAndMessages(LDAPI2_TIMOUT)
+                            myHandler.removeCallbacksAndMessages(null)
+                            irButtonListTimerTask!!.cancel()
+
+                            /** get the button list from the data json object  */
+                            val payloadJsonObject = responseJSONObject.getJSONObject("payload")
+                            val buttonJsonArray = payloadJsonObject.getJSONArray("keys")
+                            Log.d(TAG, "buttonList: $buttonJsonArray")
+                            var i = 0
+                            while (i < buttonJsonArray.length()) {
+                                val buttonNameString = buttonJsonArray.getString(i)
+                                workingRemoteButtonsHashMap[buttonNameString] = "1"
+                                i++
+                            }
+
+                            //updating the appliance info in the app
+                            updateWorkingRemoteButtons(selectedApplianceType)
+                        }
+                    }
+                } catch (e: JSONException) {
+                    e.printStackTrace()
+                    irButtonListTimerTask!!.cancel()
+                    myHandler.removeCallbacksAndMessages(LDAPI2_TIMOUT)
+                    dismissLoader()
+                    Log.d(TAG, "exeception:$e")
+                    uiRelatedClass.buidCustomSnackBarWithButton(this@IRAddRemoteVPActivity, "There sees to be an error!!.Please try after some time",
+                            "Go Back", (this@IRAddRemoteVPActivity))
+                }
+            }
+
+            override fun failure(e: java.lang.Exception) {
+                irButtonListTimerTask!!.cancel()
+                myHandler.removeCallbacksAndMessages(LDAPI2_TIMOUT)
+                dismissLoader()
+                Log.d(TAG, "exeception:$e")
+                uiRelatedClass.buidCustomSnackBarWithButton(this@IRAddRemoteVPActivity, "There sees to be an error!!.Please try after some time",
+                        "Go Back", (this@IRAddRemoteVPActivity))
+            }
+
+            override fun success() {}
+        })
+    }
+
+
+    fun updateWorkingRemoteButtons(applianceType: String) {
+        val sharedPreferences: SharedPreferences = getSharedPreferences("Mavid", Context.MODE_PRIVATE)
+        val editor = sharedPreferences.edit()
+        val workingRemoteButtonsString = gson!!.toJson(workingRemoteButtonsHashMap)
+        if (applianceType == "1" || applianceType == "TV") {
+            editor.putString("workingTVRemoteButtons", workingRemoteButtonsString)
+        } else if (applianceType == "2" || applianceType == "TVP") {
+            editor.putString("workingTVPRemoteButtons", workingRemoteButtonsString)
+        } else {
+            //Todo Ac needs to be implemented
+        }
+        dismissLoader()
+
+        editor.apply()
+    }
+
+    /**
+     * value: 2 for LDAPI#2 ie sending the remote api
+     */
+    fun buildPayloadForRemoteJsonListForLdapi2(remoteId: Int, selectedApplianceType: String): JSONObject {
+        val payloadJsonObject = JSONObject()
+        val dataJsonObject = JSONObject()
+        /** <ID>: 1 : TV
+         * 2 : STB
+         * 3 : AC</ID> */
+        try {
+            payloadJsonObject.put("ID", 2)
+            if (selectedApplianceType == "1" || selectedApplianceType == "TV") {
+                dataJsonObject.put("appliance", 1) //tv//tvp//ac
+            } else if (selectedApplianceType == "2" || selectedApplianceType == "TVP") {
+                dataJsonObject.put("appliance", 2) //tv//tvp//ac
+            } else if (selectedApplianceType == "3" || selectedApplianceType == "AC") {
+                dataJsonObject.put("appliance", 3) //tv//tvp//ac
+            }
+            dataJsonObject.put("rId", remoteId)
+            payloadJsonObject.put("data", dataJsonObject)
+            Log.d(TAG, "ldapi#2_payload$payloadJsonObject")
+        } catch (e: JSONException) {
+            e.printStackTrace()
+        }
+        return payloadJsonObject
+    }
 
     fun showSucessfullMessage() {
         uIRelatedClass?.buildSnackBarWithoutButton(this@IRAddRemoteVPActivity,
@@ -379,11 +543,12 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
             }
             //ac
             "3" -> {
+                remoteId = acRemoteId
             }
         }
+
         Log.d(TAG, "sendingRemoteButton: ".plus(buiidJsonForSendingTheKeyPressed(4,
                 selectedAppliance, remoteId, keysPressed.plus(",1")).toString()))
-
 
         LibreMavidHelper.sendCustomCommands(deviceInfo?.ipAddress,
                 LibreMavidHelper.COMMANDS.SEND_IR_REMOTE_DETAILS_AND_RETRIVING_BUTTON_LIST,
@@ -392,7 +557,7 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
                     override fun response(messageInfo: MessageInfo?) {
                         if (messageInfo != null) {
                             val dataJsonObject = JSONObject(messageInfo?.message)
-                            Log.d(TAG, "ldapi#4 response".plus(dataJsonObject).toString())
+                            Log.d(TAG, "ldapi_#4_Response".plus(dataJsonObject).toString())
                             val status = dataJsonObject.getInt("Status")
 
                             //device acknowledged or device sucess response

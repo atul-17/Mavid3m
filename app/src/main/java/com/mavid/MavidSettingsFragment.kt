@@ -79,6 +79,7 @@ class MavidSettingsFragment : Fragment() {
         progressBar.hide()
     }
 
+
     fun userLogoutApi() {
 
 

@@ -16,7 +16,7 @@ import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.mavid.BaseActivity
 import com.mavid.R
-import com.mavid.fragments.IRTvRemoteSelectionFragment
+import com.mavid.fragments.IRTvOrTvpRemoteSelectionFragment
 import com.mavid.libresdk.TaskManager.Discovery.Listeners.ListenerUtils.DeviceInfo
 import com.mavid.models.ModelLevelCode
 import com.mavid.models.ModelLevelData
@@ -32,14 +32,14 @@ import org.json.JSONObject
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
-class IRTvRemoteSelectionActivity : BaseActivity() {
+class IRTvOrTvpRemoteSelectionActivity : BaseActivity() {
 
 
     val uiRelatedClass = UIRelatedClass()
 
     lateinit var apiViewModel: ApiViewModel
 
-    val TAG = IRTvRemoteSelectionActivity::class.java.simpleName
+    val TAG = IRTvOrTvpRemoteSelectionActivity::class.java.simpleName
 
     var applianceId = 0
 
@@ -82,7 +82,7 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
         buildrogressDialog()
         showProgressBar()
 
-        getTVOrTVPORACSelectionData(applianceId, selectedApplianceType)
+        getTVOrTVPSelectionData(applianceId, selectedApplianceType)
 
     }
 
@@ -130,7 +130,7 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
     fun getAppliancesListFromAllDevicesTheUserHasConfigured(sub: String, onCallingGetApiToGetCustomNames: OnCallingGetApiToGetCustomNames) {
 
-        val requestQueue = Volley.newRequestQueue(this@IRTvRemoteSelectionActivity)
+        val requestQueue = Volley.newRequestQueue(this@IRTvOrTvpRemoteSelectionActivity)
 
         val baseUrl = "https://op4w1ojeh4.execute-api.us-east-1.amazonaws.com/Beta/usermangement?sub=$sub"
 
@@ -167,22 +167,22 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
             onCallingGetApiToGetCustomNames.onResponse(userAddedCustomNamesHashMap)
         }, Response.ErrorListener { volleyError ->
             if (volleyError is TimeoutError || volleyError is NoConnectionError) {
-                uiRelatedClass.buildSnackBarWithoutButton(this@IRTvRemoteSelectionActivity,
-                        this@IRTvRemoteSelectionActivity.window.decorView.findViewById(android.R.id.content), "Seems your internet connection is slow, please try in sometime")
+                uiRelatedClass.buildSnackBarWithoutButton(this@IRTvOrTvpRemoteSelectionActivity,
+                        this@IRTvOrTvpRemoteSelectionActivity.window.decorView.findViewById(android.R.id.content), "Seems your internet connection is slow, please try in sometime")
             } else if (volleyError is AuthFailureError) {
-                uiRelatedClass.buildSnackBarWithoutButton(this@IRTvRemoteSelectionActivity,
-                        this@IRTvRemoteSelectionActivity.window.decorView.findViewById(android.R.id.content), "AuthFailure error occurred, please try again later")
+                uiRelatedClass.buildSnackBarWithoutButton(this@IRTvOrTvpRemoteSelectionActivity,
+                        this@IRTvOrTvpRemoteSelectionActivity.window.decorView.findViewById(android.R.id.content), "AuthFailure error occurred, please try again later")
             } else if (volleyError is ServerError) {
                 if (volleyError.networkResponse.statusCode != 302) {
-                    uiRelatedClass.buildSnackBarWithoutButton(this@IRTvRemoteSelectionActivity,
-                            this@IRTvRemoteSelectionActivity.window.decorView.findViewById(android.R.id.content), "Server error occurred, please try again later")
+                    uiRelatedClass.buildSnackBarWithoutButton(this@IRTvOrTvpRemoteSelectionActivity,
+                            this@IRTvOrTvpRemoteSelectionActivity.window.decorView.findViewById(android.R.id.content), "Server error occurred, please try again later")
                 }
             } else if (volleyError is NetworkError) {
-                uiRelatedClass.buildSnackBarWithoutButton(this@IRTvRemoteSelectionActivity,
-                        this@IRTvRemoteSelectionActivity.window.decorView.findViewById(android.R.id.content), "Network error occurred, please try again later")
+                uiRelatedClass.buildSnackBarWithoutButton(this@IRTvOrTvpRemoteSelectionActivity,
+                        this@IRTvOrTvpRemoteSelectionActivity.window.decorView.findViewById(android.R.id.content), "Network error occurred, please try again later")
             } else if (volleyError is ParseError) {
-                uiRelatedClass.buildSnackBarWithoutButton(this@IRTvRemoteSelectionActivity,
-                        this@IRTvRemoteSelectionActivity.window.decorView.findViewById(android.R.id.content), "Parser error occurred, please try again later")
+                uiRelatedClass.buildSnackBarWithoutButton(this@IRTvOrTvpRemoteSelectionActivity,
+                        this@IRTvOrTvpRemoteSelectionActivity.window.decorView.findViewById(android.R.id.content), "Parser error occurred, please try again later")
             }
         })
 
@@ -211,9 +211,6 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
                 popularOptionsHashMap["SETTOP BOX"] = deviceInfo!!.usn
                 applianceType = "SETTOP BOX"
             }
-            "3" -> {
-                //ac
-            }
         }
 
 
@@ -235,7 +232,6 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
         var mutableIterator = preDefinedPopularOptionsHashMap.iterator()
 
-
         for (preDefinedHashMapObject: Map.Entry<String, String> in mutableIterator) {
 
             for (customNamesHashMap: Map.Entry<String, String> in customNamesUserIsUsingList) {
@@ -255,7 +251,7 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
 
     fun buildrogressDialog() {
-        progressDialog = Dialog(this@IRTvRemoteSelectionActivity)
+        progressDialog = Dialog(this@IRTvOrTvpRemoteSelectionActivity)
         progressDialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         progressDialog.setContentView(R.layout.custom_progress_bar)
         progressDialog.setCancelable(false)
@@ -275,7 +271,7 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
         val bundle = Bundle()
         bundle.putSerializable("modelLevelData", modelLevelData)
-        val irTelevisionApplianceFragment = IRTvRemoteSelectionFragment()
+        val irTelevisionApplianceFragment = IRTvOrTvpRemoteSelectionFragment()
         irTelevisionApplianceFragment.arguments = bundle
 
 
@@ -290,7 +286,7 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
             fm.popBackStackImmediate()
 
-            val fragment = supportFragmentManager.findFragmentById(R.id.tvRemoteSelectionFrameLayout) as IRTvRemoteSelectionFragment?
+            val fragment = supportFragmentManager.findFragmentById(R.id.tvRemoteSelectionFrameLayout) as IRTvOrTvpRemoteSelectionFragment?
 
             fragment?.irButtonListTimerTask?.cancel()
             fragment?.myHandler?.removeCallbacksAndMessages(null)
@@ -298,7 +294,7 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
             fragment?.codeLevelIndex = 0
             fragment?.initViews()
         } else {
-            val fragment = supportFragmentManager.findFragmentById(R.id.tvRemoteSelectionFrameLayout) as IRTvRemoteSelectionFragment?
+            val fragment = supportFragmentManager.findFragmentById(R.id.tvRemoteSelectionFrameLayout) as IRTvOrTvpRemoteSelectionFragment?
             fragment?.irButtonListTimerTask?.cancel()
             fragment?.myHandler?.removeCallbacksAndMessages(null)
 
@@ -309,7 +305,7 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
     fun showCustomAlertForRemoteSelection(buttonName: String, onUserButtonSelection: OnUserButtonSelection) {
         runOnUiThread {
-            val alert: Dialog = Dialog(this@IRTvRemoteSelectionActivity)
+            val alert: Dialog = Dialog(this@IRTvOrTvpRemoteSelectionActivity)
             alert.requestWindowFeature(Window.FEATURE_NO_TITLE)
             alert.setContentView(R.layout.custom_user_button_selection_alert)
 
@@ -327,10 +323,7 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
                 "TVP" -> {
                     applianceType = "Set Top Box"
                 }
-                "3",
-                "AC" -> {
-                    //
-                }
+
             }
             if (buttonName.equals("POWER", true)) {
                 tvAlertMessage.text = "Does the $applianceType Power ON/OFF?"
@@ -435,7 +428,7 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
     }
 
-    fun getTVOrTVPORACSelectionData(id: Int, selectedApplianceType: String) {
+    fun getTVOrTVPSelectionData(id: Int, selectedApplianceType: String) {
 
         apiViewModel.getTvSelectJsonDetails(id, selectedApplianceType)?.observe(this, Observer {
             if (it.modelSelectRemotePayload != null) {
@@ -456,7 +449,7 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
                         finish()
                     }
 
-                    uiRelatedClass.buildSnackBarWithoutButton(this@IRTvRemoteSelectionActivity,
+                    uiRelatedClass.buildSnackBarWithoutButton(this@IRTvOrTvpRemoteSelectionActivity,
                             window.decorView.findViewById(android.R.id.content), "No Data present at the moment for the particular appliance")
                 }
             } else {
@@ -465,35 +458,35 @@ class IRTvRemoteSelectionActivity : BaseActivity() {
 
                 if (volleyError is TimeoutError || volleyError is NoConnectionError) {
 
-                    uiRelatedClass.buidCustomSnackBarWithButton(this@IRTvRemoteSelectionActivity, "Seems your internet connection is slow, please try in sometime",
-                            "Go Back", this@IRTvRemoteSelectionActivity)
+                    uiRelatedClass.buidCustomSnackBarWithButton(this@IRTvOrTvpRemoteSelectionActivity, "Seems your internet connection is slow, please try in sometime",
+                            "Go Back", this@IRTvOrTvpRemoteSelectionActivity)
 
                 } else if (volleyError is AuthFailureError) {
 
-                    uiRelatedClass.buidCustomSnackBarWithButton(this@IRTvRemoteSelectionActivity, "AuthFailure error occurred, please try again later",
-                            "Go Back", this@IRTvRemoteSelectionActivity)
+                    uiRelatedClass.buidCustomSnackBarWithButton(this@IRTvOrTvpRemoteSelectionActivity, "AuthFailure error occurred, please try again later",
+                            "Go Back", this@IRTvOrTvpRemoteSelectionActivity)
 
                 } else if (volleyError is ServerError) {
                     if (volleyError.networkResponse.statusCode != 302) {
 
-                        uiRelatedClass.buidCustomSnackBarWithButton(this@IRTvRemoteSelectionActivity, "Server error occurred, please try again later",
-                                "Go Back", this@IRTvRemoteSelectionActivity)
+                        uiRelatedClass.buidCustomSnackBarWithButton(this@IRTvOrTvpRemoteSelectionActivity, "Server error occurred, please try again later",
+                                "Go Back", this@IRTvOrTvpRemoteSelectionActivity)
                     }
 
                 } else if (volleyError is NetworkError) {
 
-                    uiRelatedClass.buidCustomSnackBarWithButton(this@IRTvRemoteSelectionActivity, "Network error occurred, please try again later",
-                            "Go Back", this@IRTvRemoteSelectionActivity)
+                    uiRelatedClass.buidCustomSnackBarWithButton(this@IRTvOrTvpRemoteSelectionActivity, "Network error occurred, please try again later",
+                            "Go Back", this@IRTvOrTvpRemoteSelectionActivity)
 
 
                 } else if (volleyError is ParseError) {
 
-                    uiRelatedClass.buidCustomSnackBarWithButton(this@IRTvRemoteSelectionActivity, "Parser error occurred, please try again later",
-                            "Go Back", this@IRTvRemoteSelectionActivity)
+                    uiRelatedClass.buidCustomSnackBarWithButton(this@IRTvOrTvpRemoteSelectionActivity, "Parser error occurred, please try again later",
+                            "Go Back", this@IRTvOrTvpRemoteSelectionActivity)
 
                 } else {
-                    uiRelatedClass.buidCustomSnackBarWithButton(this@IRTvRemoteSelectionActivity, "SomeThing is wrong!!.Please Try after some timer",
-                            "Go Back", this@IRTvRemoteSelectionActivity)
+                    uiRelatedClass.buidCustomSnackBarWithButton(this@IRTvOrTvpRemoteSelectionActivity, "SomeThing is wrong!!.Please Try after some timer",
+                            "Go Back", this@IRTvOrTvpRemoteSelectionActivity)
                 }
             }
         })

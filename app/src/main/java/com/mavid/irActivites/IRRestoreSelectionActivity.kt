@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.os.Handler
+import android.os.Message
 import android.util.Log
 import android.view.View
 import android.view.Window
@@ -31,6 +33,8 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.nio.charset.Charset
+import java.util.*
+import kotlin.collections.ArrayList
 
 class IRRestoreSelectionActivity : AppCompatActivity() {
 
@@ -47,7 +51,7 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
 
     var index: Int = 0
 
-    var selectedAppliance = ""
+    var selectedApplianceToViewOnTextView = ""
 
     lateinit var progressDialog: Dialog
 
@@ -56,6 +60,30 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
     val TAG = IRRestoreSelectionActivity::class.java.simpleName
 
     var modelRemoteSubAndMacDetils = ModelRemoteSubAndMacDetils()
+
+    var irButtonListTimerTask: Timer? = null
+
+
+    private var LDAPI2_TIMOUT = 1
+
+    var workingRemoteButtonsHashMap: HashMap<String, String> = HashMap()
+
+    val myHandler: Handler = object : Handler() {
+        override fun handleMessage(msg: Message) {
+            val what: Int = msg.what
+            when (what) {
+                LDAPI2_TIMOUT -> {
+                    runOnUiThread {
+                        dismissLoader()
+                        irButtonListTimerTask?.cancel()
+                        Log.d(TAG, "Error")
+                        uiRelatedClass.buidCustomSnackBarWithButton(this@IRRestoreSelectionActivity, "There sees to be an error!!.Please try after some time",
+                                "Go Back", this@IRRestoreSelectionActivity)
+                    }
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -137,17 +165,17 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
         Log.d(TAG, "seletedAppliance".plus(index))
 
         if (index < modelRemoteDetailsList.size) {
-            if (modelRemoteDetailsList[index].selectedAppliance == "TV") {
+            if ((modelRemoteDetailsList[index].selectedAppliance) == "TV" || (modelRemoteDetailsList[index].selectedAppliance == "1")) {
+                selectedApplianceToViewOnTextView = "TV"
+            } else if ((modelRemoteDetailsList[index].selectedAppliance == "TVP") || (modelRemoteDetailsList[index].selectedAppliance == "2")) {
 
-                selectedAppliance = "TV"
+                selectedApplianceToViewOnTextView = "Set Top Box"
 
-            } else if (modelRemoteDetailsList[index].selectedAppliance == "TVP") {
-
-                selectedAppliance = "Set Top Box"
-
+            } else if ((modelRemoteDetailsList[index].selectedAppliance == "AC") || (modelRemoteDetailsList[index].selectedAppliance == "3")) {
+                selectedApplianceToViewOnTextView = "AC"
             }
 
-            selectedApplianceAndBrand.text = modelRemoteDetailsList[index].selectedBrandName.plus(" $selectedAppliance")
+            selectedApplianceAndBrand.text = modelRemoteDetailsList[index].selectedBrandName.plus(" $selectedApplianceToViewOnTextView")
         }
     }
 
@@ -181,6 +209,117 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
         })
     }
 
+
+    /** Call the LDAPI#2 every 3 seconds and check the status */
+    fun timerTaskToReadDeviceStatus(ipdAddress: String, remoteId: Int, selectedApplianceType: String) {
+        irButtonListTimerTask = Timer()
+        myHandler.sendEmptyMessageDelayed(LDAPI2_TIMOUT, 25000);
+        irButtonListTimerTask?.schedule(object : TimerTask() {
+            override fun run() {
+                Log.d(TAG, "callingLdapi#2 every 5 secs")
+                getButtonPayload(ipdAddress, remoteId, selectedApplianceType)
+            }
+
+        }, 0, 5000)
+    }
+
+
+    /** value: 2 for LDAPI#2 ie sending the remote api*/
+    fun buildPayloadForRemoteJsonListForLdapi2(remoteId: Int, selectedApplianceType: String): JSONObject {
+        val payloadJsonObject: JSONObject = JSONObject()
+
+        payloadJsonObject.put("ID", 2)
+
+        val dataJsonObject = JSONObject()
+        /** <ID>: 1 : TV
+        2 : STB
+        3 : AC*/
+
+        if (selectedApplianceType == "1" || selectedApplianceType == "TV") {
+            dataJsonObject.put("appliance", 1)//tv//tvp//ac
+        } else if (selectedApplianceType == "2" || selectedApplianceType == "TVP") {
+            dataJsonObject.put("appliance", 2)//tv//tvp//ac
+        } else if (selectedApplianceType == "3" || selectedApplianceType == "AC") {
+            dataJsonObject.put("appliance", 3)//tv//tvp//ac
+        }
+
+        dataJsonObject.put("rId", remoteId)
+
+        payloadJsonObject.put("data", dataJsonObject)
+
+        Log.d(TAG, "ldapi#2_payload".plus(payloadJsonObject.toString()))
+
+        return payloadJsonObject
+
+    }
+
+
+    /** LDAPI#2 */
+    fun getButtonPayload(ipdAddress: String, remoteId: Int, selectedApplianceType: String) {
+        LibreMavidHelper.sendCustomCommands(ipdAddress, LibreMavidHelper.COMMANDS.SEND_IR_REMOTE_DETAILS_AND_RETRIVING_BUTTON_LIST,
+                buildPayloadForRemoteJsonListForLdapi2(remoteId, selectedApplianceType).toString(), object : CommandStatusListenerWithResponse {
+            override fun response(messageInfo: MessageInfo?) {
+                Log.d(TAG, "ldapi#2_".plus(messageInfo?.message))
+                try {
+                    val responseJSONObject = JSONObject(messageInfo?.message)
+                    val statusCode = responseJSONObject.getInt("Status")
+                    when (statusCode) {
+
+                        3 -> {
+                            myHandler.removeCallbacksAndMessages(LDAPI2_TIMOUT)
+                            myHandler?.removeCallbacksAndMessages(null)
+                            irButtonListTimerTask?.cancel()
+                            /** get the button list from the data json object */
+
+                            val payloadJsonObject = responseJSONObject.getJSONObject("payload")
+
+                            val buttonJsonArray = payloadJsonObject.getJSONArray("keys")
+
+                            Log.d(TAG, "buttonList: ".plus(buttonJsonArray.toString()))
+
+                            for (i in 0 until buttonJsonArray.length()) {
+                                val buttonNameString = buttonJsonArray[i] as String
+                                workingRemoteButtonsHashMap[buttonNameString] = "1"
+                            }
+
+
+                            //updating the appliance info in the app
+
+                            updateApplianceInfoInSharedPref(modelRemoteDetailsList[index], deviceInfo!!.usn)
+
+                            //inc to next appliance from the list
+                            index += 1
+
+                            dismissLoader()
+
+                            //check if the config is done
+                            checkWhetherRemoteConfigurationIsDone()
+
+                            updateSelectedApplianceTextView()
+                        }
+
+                    }
+                } catch (e: JSONException) {
+                    irButtonListTimerTask?.cancel()
+                    myHandler.removeCallbacksAndMessages(LDAPI2_TIMOUT)
+                    dismissLoader()
+                    Log.d(TAG, "exeception:".plus(e.toString()))
+                    uiRelatedClass.buidCustomSnackBarWithButton(this@IRRestoreSelectionActivity, "There sees to be an error!!.Please try after some time",
+                            "Go Back", this@IRRestoreSelectionActivity)
+                }
+
+            }
+
+            override fun failure(e: java.lang.Exception?) {
+                dismissLoader()
+                Log.d(TAG, "sendingRemoteDetailsException$e")
+            }
+
+            override fun success() {
+
+            }
+        })
+    }
 
     fun updateApplianceInfoInSharedPref(modelRemoteDetails: ModelRemoteDetails, macId: String) {
 
@@ -223,6 +362,13 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
         var editor: SharedPreferences.Editor
         editor = sharedPreferences!!.edit()
         editor.putString("applianceInfoList", modelRemoteDetailsString)
+
+        val workingRemoteButtonsString = gson.toJson(workingRemoteButtonsHashMap)
+        if (modelRemoteDetails.selectedAppliance == "1" || modelRemoteDetails.selectedAppliance == "TV") {
+            editor.putString("workingTVRemoteButtons", workingRemoteButtonsString)
+        } else if (modelRemoteDetails.selectedAppliance == "2" || modelRemoteDetails.selectedAppliance == "TVP") {
+            editor.putString("workingTVPRemoteButtons", workingRemoteButtonsString)
+        }
         editor.apply()
     }
 
@@ -232,6 +378,8 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
             modelRemoteDetails.customName = "TV"//for now hardcoding the customa name
         } else if (modelRemoteDetails.selectedAppliance == "2" || modelRemoteDetails.selectedAppliance == "TVP") {
             modelRemoteDetails.customName = "My Box"//for now hardcoding the customa name
+        } else if (modelRemoteDetails.selectedAppliance == "3" || modelRemoteDetails.selectedAppliance == "AC") {
+            modelRemoteDetails.customName = "AC"
         }
         modelRemoteDetails.groupId = 1
         modelRemoteDetails.groupdName = "Scene1"
@@ -263,10 +411,13 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
     fun buildJsonForUserManagmentApis(sub: String, macAddress: String,
                                       modelRemoteDetails: ModelRemoteDetails, operation: String): JSONObject {
         var payLoadObject: JSONObject = JSONObject()
+
         if (modelRemoteDetails.selectedAppliance == "2" || modelRemoteDetails.selectedAppliance == "TVP") {
             payLoadObject.put("Appliance", "TVP")
         } else if (modelRemoteDetails.selectedAppliance == "1" || modelRemoteDetails.selectedAppliance == "TV") {
             payLoadObject.put("Appliance", "TV")
+        } else if ((modelRemoteDetails.selectedAppliance == "3" || modelRemoteDetails.selectedAppliance == "AC")) {
+            payLoadObject.put("Appliance", "AC")
         }
         payLoadObject.put("RemoteID", modelRemoteDetails.remoteId)
         payLoadObject.put("BrandID", modelRemoteDetails.brandId)
@@ -470,25 +621,26 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
 
                             //device acknowledged
                             if (status == 2) {
-
-//                           timerTaskToReadDeviceStatus(ipAddress, modelRemoteDetails)
-
                                 Log.d(TAG, "response_from_ldapi1" + messageInfo?.message)
 
-                                //updating the appliance info in the app
+                                if (modelRemoteDetails.selectedAppliance == "1" || modelRemoteDetails.selectedAppliance == "TV"
+                                        || modelRemoteDetails.selectedAppliance == "2" || modelRemoteDetails.selectedAppliance == "TVP") {
+                                    timerTaskToReadDeviceStatus(ipAddress, modelRemoteDetails.remoteId.toInt(), modelRemoteDetails.selectedAppliance)
+                                } else {
+                                    //updating the appliance info in the app
 
-                                updateApplianceInfoInSharedPref(modelRemoteDetailsList[index], deviceInfo!!.usn)
+                                    updateApplianceInfoInSharedPref(modelRemoteDetailsList[index], deviceInfo!!.usn)
 
-                                //inc to next appliance from the list
-                                index += 1
+                                    //inc to next appliance from the list
+                                    index += 1
 
-                                dismissLoader()
+                                    dismissLoader()
 
-                                //check if the config is done
-                                checkWhetherRemoteConfigurationIsDone()
+                                    //check if the config is done
+                                    checkWhetherRemoteConfigurationIsDone()
 
-                                updateSelectedApplianceTextView()
-
+                                    updateSelectedApplianceTextView()
+                                }
 
                             } else if (status == 3) {
                                 //error
@@ -510,7 +662,7 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
                     }
 
                     override fun success() {
-                        dismissLoader()
+
                     }
                 })
     }
@@ -564,10 +716,16 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
             modelRemoteDetails.selectedBrandName = applianceObject.getString("BrandName")
             modelRemoteDetails.remoteId = applianceObject.getString("RemoteID")
             modelRemoteDetails.brandId = applianceObject.getString("BrandID")
-            if (applianceObject["Appliance"] == "TV") {
-                modelRemoteDetails.selectedAppliance = "1"
-            } else if (applianceObject["Appliance"] == "TVP") {
-                modelRemoteDetails.selectedAppliance = "2"
+            when {
+                applianceObject["Appliance"] == "TV" -> {
+                    modelRemoteDetails.selectedAppliance = "1"
+                }
+                applianceObject["Appliance"] == "TVP" -> {
+                    modelRemoteDetails.selectedAppliance = "2"
+                }
+                applianceObject["Appliance"] == "AC" -> {
+                    modelRemoteDetails.selectedAppliance = "3"
+                }
             }
             modelRemoteDetails.customName = applianceObject.getString("CustomName")
         } catch (e: JSONException) {

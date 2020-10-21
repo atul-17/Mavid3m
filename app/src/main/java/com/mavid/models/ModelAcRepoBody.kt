@@ -2,7 +2,7 @@ package com.mavid.models
 
 import com.android.volley.VolleyError
 
-class ModelRepoBody {
-    var modelSelectRemotePayload: ModelSelectRemotePayload? = null
+class ModelAcRepoBody {
+    var modelSelecAcRemotePayload: MutableList<ModelSelectAcRemotePayload>? = null
     var volleyError: VolleyError? = null
 }

@@ -19,7 +19,6 @@ import com.mavid.utility.ApiConstants
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
-import java.nio.charset.Charset
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -37,6 +36,8 @@ class ApiViewModel(application: Application) : AndroidViewModel(application) {
 
     private var getSelectRemoteJson: MutableLiveData<ModelRepoBody>? = null
 
+    private var getSelecAcRemoteJsonLiveData: MutableLiveData<ModelAcRepoBody>? = null
+
     private var getUserMgtDetailsSucessError: MutableLiveData<ModelGetUserMgtDetailsSucessError>? = null
 
 
@@ -44,6 +45,7 @@ class ApiViewModel(application: Application) : AndroidViewModel(application) {
 
     private var getTvpRegionalBrandLiveData: MutableLiveData<ModelGetRegionalBodyResponse>? = null
 
+    private var getAcBrandsLiveData: MutableLiveData<AcBrandsDetailsRepoModel>? = null
 
     //tv select json list
     val modelSelectRemotePayload = ModelSelectRemotePayload()
@@ -136,9 +138,17 @@ class ApiViewModel(application: Application) : AndroidViewModel(application) {
     fun getTvSelectJsonDetails(id: Int, selectedApplianceType: String): LiveData<ModelRepoBody>? {
         if (getSelectRemoteJson == null) {
             getSelectRemoteJson = MutableLiveData<ModelRepoBody>()
-            getTvSelectJsonData(id, selectedApplianceType)
+            getTvOrTvpelectJsonData(id, selectedApplianceType)
         }
         return getSelectRemoteJson
+    }
+
+    fun getAcSelectJsonDetails(id: Int): LiveData<ModelAcRepoBody>? {
+        if (getSelecAcRemoteJsonLiveData == null) {
+            getSelecAcRemoteJsonLiveData = MutableLiveData<ModelAcRepoBody>()
+            getAcSelectJsonData(id)
+        }
+        return getSelecAcRemoteJsonLiveData
     }
 
     fun getUserMgtDetailsList(id: String): LiveData<ModelGetUserMgtDetailsSucessError>? {
@@ -339,8 +349,6 @@ class ApiViewModel(application: Application) : AndroidViewModel(application) {
 
             val payloadArrayObject = bodyObject.getJSONArray("payload")
 
-
-
             if (payloadArrayObject.length() > 0) {
 
                 val tvBrandsDetailsRepoModelList: MutableList<TvBrandsSucessRepoModel> = ArrayList()
@@ -352,7 +360,6 @@ class ApiViewModel(application: Application) : AndroidViewModel(application) {
                     val payloadJsonObject: JSONObject = payloadArrayObject[i] as JSONObject
 
                     val tvBrandsSucessRepoModel = TvBrandsSucessRepoModel()
-
 
                     tvBrandsSucessRepoModel.id = payloadJsonObject.getInt("id")
                     tvBrandsSucessRepoModel.name = payloadJsonObject.getString("name")
@@ -403,6 +410,67 @@ class ApiViewModel(application: Application) : AndroidViewModel(application) {
         return getTvpBrandsLiveData!!
     }
 
+    fun getAcBrandsGetApiResponse(): MutableLiveData<AcBrandsDetailsRepoModel> {
+        if (getAcBrandsLiveData == null) {
+            getAcBrandsLiveData = MutableLiveData<AcBrandsDetailsRepoModel>()
+            getAcBrandsList()
+        }
+        return getAcBrandsLiveData!!
+    }
+
+    fun getAcBrandsList() {
+        val context = getApplication<Application>().applicationContext
+
+        val requestQueue = Volley.newRequestQueue(context)
+
+        val acBrandsListUrl = "https://op4w1ojeh4.execute-api.us-east-1.amazonaws.com/Beta/AC"
+
+        val getAcBrandsListStringRequest = object : StringRequest(Request.Method.GET, acBrandsListUrl, Response.Listener { response ->
+
+            Log.d(TAG, "getTvBrandList response$response")
+
+            val responseObject: JSONObject = JSONObject(response)
+
+            val bodyObject = responseObject.getJSONObject("body")
+
+            val payloadArrayObject = bodyObject.getJSONArray("payload")
+
+            if (payloadArrayObject.length() > 0) {
+                val acBrandsDetailsRepoModel = AcBrandsDetailsRepoModel()
+                val acBrandsDetailsRepoModelList: MutableList<AcBrandsSucessRepoModel> = ArrayList()
+                for (i in 0 until payloadArrayObject.length()) {
+                    val payloadJsonObject: JSONObject = payloadArrayObject[i] as JSONObject
+                    val acBrandsSucessRepoModel = AcBrandsSucessRepoModel()
+                    acBrandsSucessRepoModel.id = payloadJsonObject.getInt("id")
+                    acBrandsSucessRepoModel.name = payloadJsonObject.getString("name")
+
+                    val remoteJsonArray = payloadJsonObject.getJSONArray("remotes")
+                    if (remoteJsonArray.length() > 0) {
+                        val remoteList: MutableList<Int> = ArrayList()
+                        for (j in 0 until remoteJsonArray.length()) {
+                            val value: Int = remoteJsonArray.getInt(j)
+                            remoteList.add(value)
+                        }
+                        acBrandsSucessRepoModel.remoteList = remoteList
+                    }
+                    acBrandsDetailsRepoModelList.add(acBrandsSucessRepoModel)
+                }
+                acBrandsDetailsRepoModel.acBrandsSucessRepoModelList = acBrandsDetailsRepoModelList
+
+                getAcBrandsLiveData?.value = acBrandsDetailsRepoModel
+            }
+        }, Response.ErrorListener { volleyError ->
+            val acBrandsDetailsRepoModel = AcBrandsDetailsRepoModel()
+            acBrandsDetailsRepoModel.volleyError = volleyError
+            getAcBrandsLiveData?.value = acBrandsDetailsRepoModel
+        }) {}
+        getAcBrandsListStringRequest.retryPolicy = DefaultRetryPolicy(
+                30000,
+                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+        )
+        requestQueue.add(getAcBrandsListStringRequest)
+    }
 
     fun getTVPBrandsList() {
 
@@ -476,6 +544,7 @@ class ApiViewModel(application: Application) : AndroidViewModel(application) {
         }
         return getTvpRegionalBrandLiveData
     }
+
 
     fun getRegionalTvpBrandsList(id: Int) {
 
@@ -565,7 +634,76 @@ class ApiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
 
-    fun getTvSelectJsonData(id: Int, selectedApplianceType: String) {
+    fun getAcSelectJsonData(id: Int) {
+
+        val context = getApplication<Application>().applicationContext
+
+        val requestQueue = Volley.newRequestQueue(context)
+
+        var url: String? = "https://op4w1ojeh4.execute-api.us-east-1.amazonaws.com/Beta/ACSELECT?id=".plus(id) //select json for ac
+
+        val getAcBrandList = object : StringRequest(Request.Method.GET, url, Response.Listener { response ->
+
+            Log.d(TAG, "getAcSelectJsonData response$response")
+
+
+            val responseObject = JSONObject(response)
+
+            val modelAcRepoModel = ModelAcRepoBody()
+
+            var modelSelectAcRemotePayloadList: MutableList<ModelSelectAcRemotePayload> = ArrayList()
+
+            var bodyObject: JSONObject? = null
+            try {
+                bodyObject = responseObject.getJSONObject("body") as JSONObject
+            } catch (e: JSONException) {
+                //body might be a string
+                val modelSelectAcRemotePayload = ModelSelectAcRemotePayload()
+                modelSelectAcRemotePayload.remoteId = "0"
+                modelSelectAcRemotePayload.powerOff = "No Data present"
+                modelSelectAcRemotePayload.powerOnOrIrCommand = "No Data present"
+
+                modelSelectAcRemotePayloadList.add(modelSelectAcRemotePayload)
+
+                modelAcRepoModel.modelSelecAcRemotePayload = modelSelectAcRemotePayloadList
+
+                getSelecAcRemoteJsonLiveData?.value = modelAcRepoModel
+            }
+
+            if (bodyObject!=null) {
+                var payloadObject: JSONObject = bodyObject!!.getJSONObject("payload")
+
+                var remotesJsonArray: JSONArray = payloadObject.getJSONArray("remotes")
+
+                for (i in 0 until remotesJsonArray.length()) {
+                    val remoteJsonObject: JSONObject = remotesJsonArray[i] as JSONObject
+                    val modelSelectAcRemotePayload = ModelSelectAcRemotePayload()
+                    modelSelectAcRemotePayload.remoteId = remoteJsonObject.getInt("id").toString()
+                    modelSelectAcRemotePayload.powerOff = remoteJsonObject.getString("Power Off")
+                    modelSelectAcRemotePayload.powerOnOrIrCommand = remoteJsonObject.getString("ircommand")
+
+                    modelSelectAcRemotePayloadList.add(modelSelectAcRemotePayload)
+                }
+
+                modelAcRepoModel.modelSelecAcRemotePayload = modelSelectAcRemotePayloadList
+
+                getSelecAcRemoteJsonLiveData?.value = modelAcRepoModel
+            }
+
+        }, Response.ErrorListener { volleyError ->
+            val modelAcRepoModel = ModelAcRepoBody()
+            modelAcRepoModel.volleyError = volleyError
+            getSelecAcRemoteJsonLiveData?.value = modelAcRepoModel
+        }) {}
+        getAcBrandList.retryPolicy = DefaultRetryPolicy(
+                30000,
+                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+        )
+        requestQueue.add(getAcBrandList)
+    }
+
+    fun getTvOrTvpelectJsonData(id: Int, selectedApplianceType: String) {
 
         val context = getApplication<Application>().applicationContext
 
@@ -582,9 +720,6 @@ class ApiViewModel(application: Application) : AndroidViewModel(application) {
             "2" -> {
                 //tvp
                 url = "https://op4w1ojeh4.execute-api.us-east-1.amazonaws.com/Beta/TVPSELECT?id=".plus(id)//select json for tvp
-            }
-            "3" -> {
-                //ac
             }
         }
 
@@ -642,7 +777,6 @@ class ApiViewModel(application: Application) : AndroidViewModel(application) {
         )
         requestQueue.add(getTvBrandsList)
     }
-
 
 
 }
