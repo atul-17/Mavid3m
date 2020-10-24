@@ -42,10 +42,10 @@
 
 
     <LinearLayout
+        android:id="@+id/llRemoteUi"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:id="@+id/llRemoteUi"
         android:visibility="visible"
         android:weightSum="3">
 
@@ -211,48 +211,50 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight=".35"
+            android:layout_weight=".45"
             android:orientation="horizontal"
             android:weightSum="1">
 
-
-            <LinearLayout
+            <RelativeLayout
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:layout_gravity="center"
                 android:layout_weight=".5"
+                android:id="@+id/rlPowerOn"
                 android:gravity="center">
 
+
                 <androidx.appcompat.widget.AppCompatImageView
+                    android:id="@+id/ivPowerOn"
                     android:layout_width="25dp"
                     android:layout_height="25dp"
-                    android:src="@drawable/ic_power_green" />
+                    android:clickable="false"
+                    android:src="@drawable/ic_custom_power_on_active_inactive" />
 
-            </LinearLayout>
+            </RelativeLayout>
 
             <View
                 android:layout_width="1dp"
                 android:layout_height="match_parent"
                 android:background="@color/div_line_color" />
 
-            <LinearLayout
+            <RelativeLayout
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:layout_gravity="center"
                 android:layout_weight=".5"
+                android:id="@+id/rlPowerOff"
                 android:gravity="center">
 
-                <androidx.appcompat.widget.AppCompatTextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="right"
-                    android:fontFamily="@font/quicksand_regular"
-                    android:gravity="right"
-                    android:text="Mode"
-                    android:textColor="@color/white"
-                    android:textSize="18sp" />
+                <androidx.appcompat.widget.AppCompatImageView
+                    android:id="@+id/ivPowerOff"
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"
+                    android:clickable="false"
+                    android:src="@drawable/ic_custom_power_off_active_inactive" />
+            </RelativeLayout>
 
-            </LinearLayout>
+
         </LinearLayout>
 
         <View
@@ -263,36 +265,21 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight=".4"
+            android:layout_weight=".6"
+            android:clickable="false"
             android:orientation="horizontal"
-            android:weightSum="3">
+            android:weightSum="2">
 
             <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/tvDirectionBtn"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_weight="1"
-                android:fontFamily="@font/quicksand_regular"
-                android:gravity="center"
-                android:text="Speed"
-                android:textColor="@color/white"
-                android:textSize="18sp" />
-
-            <View
-                android:layout_width="1dp"
                 android:layout_height="match_parent"
-                android:background="@color/div_line_color" />
-
-
-            <androidx.appcompat.widget.AppCompatTextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_weight="1"
                 android:fontFamily="@font/quicksand_regular"
                 android:gravity="center"
                 android:text="Direction"
-                android:textColor="@color/white"
+                android:textColor="@color/ic_text_color_white_grey"
                 android:textSize="18sp" />
 
             <View
@@ -302,14 +289,15 @@
 
 
             <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/tvSwing"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:layout_gravity="center"
                 android:layout_weight="1"
                 android:fontFamily="@font/quicksand_regular"
                 android:gravity="center"
                 android:text="Swing"
-                android:textColor="@color/white"
+                android:textColor="@color/ic_text_color_white_grey"
                 android:textSize="18sp" />
         </LinearLayout>
 
@@ -321,12 +309,13 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight=".4"
+            android:layout_weight=".45"
             android:orientation="horizontal"
             android:weightSum="3">
 
 
             <LinearLayout
+                android:id="@+id/llTempMinus"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
@@ -336,7 +325,8 @@
                 <androidx.appcompat.widget.AppCompatImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:src="@drawable/ic_minus_inactive_btn" />
+                    android:id="@+id/ivTempMinus"
+                    android:src="@drawable/ic_custom_active_inactive_minus_btn" />
 
             </LinearLayout>
 
@@ -349,11 +339,11 @@
                 android:fontFamily="@font/quicksand_regular"
                 android:gravity="center"
                 android:text="Temp"
-                android:textColor="@color/white"
+                android:textColor="@color/ic_text_color_white_grey"
                 android:textSize="18sp" />
 
-
             <LinearLayout
+                android:id="@+id/llTempPlus"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
@@ -363,7 +353,8 @@
                 <androidx.appcompat.widget.AppCompatImageView
                     android:layout_width="20dp"
                     android:layout_height="20dp"
-                    android:src="@drawable/ic_inactive_plus_btn" />
+                    android:id="@+id/ivTempPlus"
+                    android:src="@drawable/ic_custom_active_inactive_plus_btn" />
 
             </LinearLayout>
         </LinearLayout>
@@ -376,19 +367,21 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight=".4"
+            android:layout_weight=".5"
             android:orientation="horizontal"
-            android:weightSum="3">
+            android:visibility="visible"
+            android:weightSum="2">
 
             <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/tvSpeedBtn"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:layout_gravity="center"
                 android:layout_weight="1"
                 android:fontFamily="@font/quicksand_regular"
                 android:gravity="center"
-                android:text="Timer"
-                android:textColor="@color/white"
+                android:text="Speed"
+                android:textColor="@color/ic_text_color_white_grey"
                 android:textSize="18sp" />
 
             <View
@@ -398,20 +391,17 @@
 
 
             <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/tvModeBtn"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:layout_gravity="center"
                 android:layout_weight="1"
                 android:fontFamily="@font/quicksand_regular"
                 android:gravity="center"
-                android:text="Sleep"
-                android:textColor="@color/white"
+                android:text="Mode"
+                android:textColor="@color/ic_text_color_white_grey"
                 android:textSize="18sp" />
 
-            <View
-                android:layout_width="1dp"
-                android:layout_height="match_parent"
-                android:background="@color/div_line_color" />
 
         </LinearLayout>
 

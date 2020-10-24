@@ -86,6 +86,8 @@
         android:layout_marginRight="15dp"
         android:backgroundTint="@color/brand_orange"
         android:enabled="true"
+        android:singleLine="true"
+        android:digits="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890 "
         android:textColor="@color/white"
         android:textColorHint="@color/grey_400"
         android:textSize="22sp" />

@@ -561,61 +561,81 @@ class ApiViewModel(application: Application) : AndroidViewModel(application) {
 
             val responseObject: JSONObject = JSONObject(response)
 
-            var statusCode: String = responseObject.getString("statuscode")
 
-            if (statusCode == "200") {
+            Log.d(TAG, "response$response")
 
-                val responseBodyObject: JSONObject = responseObject.getJSONObject("body")
+            val responseBodyObject: JSONObject? = responseObject.optJSONObject("body")
 
-                val payloadObject: JSONObject = responseBodyObject.getJSONObject("payload")
-
-                val completedJsonArray: JSONArray = payloadObject.getJSONArray("completed")
+            if (responseBodyObject != null) {
 
                 var modelGetRegionalBodyResponse = ModelGetRegionalBodyResponse()
 
                 var modelGetRegionalTvpPayloadSucessList: MutableList<ModelGetRegionalTvpPayloadSucess> = ArrayList()
 
+                var statusCode: String = responseObject.getString("statuscode")
 
-                for (i in 0 until completedJsonArray.length()) {
+                if (statusCode == "200") {
 
-                    var modelGetRegionalTvpPayloadSucess = ModelGetRegionalTvpPayloadSucess()
+                    val payloadObject: JSONObject = responseBodyObject.getJSONObject("payload")
 
-                    var completedJsonObject: JSONObject = completedJsonArray[i] as JSONObject
+                    val completedJsonArray: JSONArray = payloadObject.getJSONArray("completed")
 
-                    modelGetRegionalTvpPayloadSucess.remoteIds = completedJsonObject.getString("remote_ids")
+                    for (i in 0 until completedJsonArray.length()) {
 
-                    modelGetRegionalTvpPayloadSucess.regionalId = completedJsonObject.getInt("id")
+                        var modelGetRegionalTvpPayloadSucess = ModelGetRegionalTvpPayloadSucess()
 
-                    modelGetRegionalTvpPayloadSucess.state = completedJsonObject.getString("state")
+                        var completedJsonObject: JSONObject = completedJsonArray[i] as JSONObject
 
-                    modelGetRegionalTvpPayloadSucess.title = completedJsonObject.getString("title")
+                        modelGetRegionalTvpPayloadSucess.remoteIds = completedJsonObject.getString("remote_ids")
 
-                    modelGetRegionalTvpPayloadSucess.region = completedJsonObject.getString("region")
+                        modelGetRegionalTvpPayloadSucess.regionalId = completedJsonObject.getInt("id")
+
+                        modelGetRegionalTvpPayloadSucess.state = completedJsonObject.getString("state")
+
+                        modelGetRegionalTvpPayloadSucess.title = completedJsonObject.getString("title")
+
+                        modelGetRegionalTvpPayloadSucess.region = completedJsonObject.getString("region")
 
 
-                    modelGetRegionalTvpPayloadSucess.slug = completedJsonObject.getString("slug")
+                        modelGetRegionalTvpPayloadSucess.slug = completedJsonObject.getString("slug")
 
-                    modelGetRegionalTvpPayloadSucess.group = completedJsonObject.getString("group")
+                        modelGetRegionalTvpPayloadSucess.group = completedJsonObject.getString("group")
 
-                    //brand json object
-                    var modelTvpGetRegionalBrand = ModelTvpGetRegionalBrand()
-                    var brandJsonObject = completedJsonObject.getJSONObject("brand")
+                        //brand json object
+                        var modelTvpGetRegionalBrand = ModelTvpGetRegionalBrand()
+                        var brandJsonObject = completedJsonObject.getJSONObject("brand")
 
-                    modelTvpGetRegionalBrand.tvpBrandId = brandJsonObject.getInt("id")
-                    modelTvpGetRegionalBrand.tvpBrandTitle = brandJsonObject.getString("title")
+                        modelTvpGetRegionalBrand.tvpBrandId = brandJsonObject.getInt("id")
+                        modelTvpGetRegionalBrand.tvpBrandTitle = brandJsonObject.getString("title")
 
-                    modelTvpGetRegionalBrand.isDth = brandJsonObject.getBoolean("is_dth")
-                    modelTvpGetRegionalBrand.providerGroup = brandJsonObject.getString("provider_group")
+                        modelTvpGetRegionalBrand.isDth = brandJsonObject.getBoolean("is_dth")
+                        modelTvpGetRegionalBrand.providerGroup = brandJsonObject.getString("provider_group")
 
-                    modelGetRegionalTvpPayloadSucess.modelTvpGetRegionalBrand = modelTvpGetRegionalBrand
+                        modelGetRegionalTvpPayloadSucess.modelTvpGetRegionalBrand = modelTvpGetRegionalBrand
 
-                    modelGetRegionalTvpPayloadSucessList.add(modelGetRegionalTvpPayloadSucess)
+                        modelGetRegionalTvpPayloadSucessList.add(modelGetRegionalTvpPayloadSucess)
+                    }
                 }
 
                 modelGetRegionalBodyResponse.modelGetTvpBrandsSucessResponseList = modelGetRegionalTvpPayloadSucessList
 
                 getTvpRegionalBrandLiveData?.value = modelGetRegionalBodyResponse
+            } else {
+                var modelGetRegionalBodyResponse = ModelGetRegionalBodyResponse()
+
+                var modelGetRegionalTvpPayloadSucessList: MutableList<ModelGetRegionalTvpPayloadSucess> = ArrayList()
+
+                val modelGetRegionalTvpPayloadSucess = ModelGetRegionalTvpPayloadSucess()
+                modelGetRegionalTvpPayloadSucess.remoteIds = "-1"
+                modelGetRegionalTvpPayloadSucess.title = "No data found"
+
+                modelGetRegionalTvpPayloadSucessList.add(modelGetRegionalTvpPayloadSucess)
+
+                modelGetRegionalBodyResponse.modelGetTvpBrandsSucessResponseList = modelGetRegionalTvpPayloadSucessList
+
+                getTvpRegionalBrandLiveData?.value = modelGetRegionalBodyResponse
             }
+
 
         }, Response.ErrorListener { volleyError ->
             var modelGetRegionalBodyResponse = ModelGetRegionalBodyResponse()
@@ -670,7 +690,7 @@ class ApiViewModel(application: Application) : AndroidViewModel(application) {
                 getSelecAcRemoteJsonLiveData?.value = modelAcRepoModel
             }
 
-            if (bodyObject!=null) {
+            if (bodyObject != null) {
                 var payloadObject: JSONObject = bodyObject!!.getJSONObject("payload")
 
                 var remotesJsonArray: JSONArray = payloadObject.getJSONArray("remotes")

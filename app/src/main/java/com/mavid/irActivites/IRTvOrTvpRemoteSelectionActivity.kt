@@ -208,8 +208,8 @@ class IRTvOrTvpRemoteSelectionActivity : BaseActivity() {
             "TVP"
             -> {
                 //tvp
-                popularOptionsHashMap["SETTOP BOX"] = deviceInfo!!.usn
-                applianceType = "SETTOP BOX"
+                popularOptionsHashMap["SET TOP BOX"] = deviceInfo!!.usn
+                applianceType = "SET TOP BOX"
             }
         }
 

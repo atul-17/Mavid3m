@@ -157,8 +157,51 @@ class IRTvOrTvpRemoteSelectionFragment : Fragment() {
                                             tvSendingCommand.visibility = View.GONE
                                             btnRemoteButtonName.visibility = View.GONE
                                             if (getActivityObject() != null) {
-                                                Log.d(TAG, "LDAPI#1 data: " + buildRemotePayloadJson(getModelCodeLevelId(modelLevelCode!!)).toString())
-                                                sendRemoteDetailsToMavid3m(getActivityObject()!!.ipAddress, getModelCodeLevelId(modelLevelCode!!))
+                                                if (!checkIfTheUserSelectedRemoteIsPrevSelected(getActivityObject()!!.selectedApplianceType,
+                                                                getModelCodeLevelId(modelLevelCode!!), getActivityObject()!!.applianceId, getActivityObject()?.deviceInfo!!.usn)) {
+
+                                                    getActivityObject()?.getAppliancesListFromAllDevicesTheUserHasConfigured(getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
+                                                            object : OnCallingGetApiToGetCustomNames {
+                                                                override fun onResponse(userAddedCustomNamesHashMap: HashMap<String, String>) {
+                                                                    /**
+                                                                     * Filter out names which
+                                                                     * are already used by the
+                                                                     * user in another device
+                                                                     * */
+                                                                    /**
+                                                                     * show the user an options to edit custom for the appliance he has configured
+                                                                     * *
+                                                                     * */
+                                                                    val filtredHashMap: HashMap<String, String> = getActivityObject()!!
+                                                                            .filterOutDuplicateNamesWhichAreUsedByTheUser(userAddedCustomNamesHashMap, getActivityObject()!!.addPreDefinedPopularOptionsCustomName(getActivityObject()!!
+                                                                                    .selectedApplianceType, getActivityObject()!!.applianceName))
+                                                                    getActivityObject()?.dismissLoader()
+                                                                    //show the dialog to edit custom name
+                                                                    uiRelatedClass.showBottomDialogForAddingCustomName(getActivityObject()!!, object : OnButtonClickCallbackWithStringParams {
+                                                                        override fun onUserClicked(userPassedInfo: String) {
+
+                                                                            Log.d(TAG, "LDAPI#1 data: " + buildRemotePayloadJson(getModelCodeLevelId(modelLevelCode!!)).toString())
+                                                                            sendRemoteDetailsToMavid3mLDAPI1(getActivityObject()!!.ipAddress, getModelCodeLevelId(modelLevelCode!!), userPassedInfo)
+                                                                        }
+                                                                    }, filtredHashMap, userAddedCustomNamesHashMap,
+                                                                            getActivityObject()!!.selectedApplianceType, getActivityObject()!!.applianceName, getActivityObject()?.deviceInfo!!.usn)
+                                                                }
+                                                            })
+
+                                                } else {
+                                                    /** show a dialog to inform the user
+                                                     * he has prev selected the same remote id
+                                                     * */
+                                                    getActivityObject()?.runOnUiThread {
+                                                        getActivityObject()?.dismissLoader()
+                                                        uiRelatedClass.showUserCustomDialogForPrevSelectedRemote(getActivityObject()!!, object : OnButtonClickCallback {
+                                                            override fun onClick(isSucess: Boolean) {
+                                                                gotoNextActivity(getActivityObject()!!.selectedApplianceType)
+                                                            }
+                                                        })
+                                                    }
+                                                }
+
                                             }
                                         }
 
@@ -337,7 +380,7 @@ class IRTvOrTvpRemoteSelectionFragment : Fragment() {
 
 
     /** LDAPI#1 */
-    fun sendRemoteDetailsToMavid3m(ipAddress: String, remoteId: Int) {
+    fun sendRemoteDetailsToMavid3mLDAPI1(ipAddress: String, remoteId: Int, customName: String) {
         getActivityObject()?.showProgressBar()
         val payloadString = buildRemotePayloadJson(remoteId).toString()
         LibreMavidHelper.sendCustomCommands(ipAddress, LibreMavidHelper.COMMANDS.SEND_IR_REMOTE_DETAILS_AND_RETRIVING_BUTTON_LIST, payloadString,
@@ -352,48 +395,12 @@ class IRTvOrTvpRemoteSelectionFragment : Fragment() {
                             if (status == 2) {//device acknowledged
                                 //calling get api from with
                                 //all the devices present
-                                if (!checkIfTheUserSelectedRemoteIsPrevSelected(getActivityObject()!!.selectedApplianceType,
-                                                remoteId, getActivityObject()?.deviceInfo!!.usn)) {
-                                    /**show the user an options to edit custom for the appliance he has configured
-                                     * *
-                                     * */
-                                    getActivityObject()?.getAppliancesListFromAllDevicesTheUserHasConfigured(getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
-                                            object : OnCallingGetApiToGetCustomNames {
-                                                override fun onResponse(userAddedCustomNamesHashMap: HashMap<String, String>) {
-                                                    /**
-                                                     * Filter out names which
-                                                     * are already used by the
-                                                     * user in another device
-                                                     * */
-                                                    val filtredHashMap: HashMap<String, String> = getActivityObject()!!
-                                                            .filterOutDuplicateNamesWhichAreUsedByTheUser(userAddedCustomNamesHashMap, getActivityObject()!!.addPreDefinedPopularOptionsCustomName(getActivityObject()!!
-                                                                    .selectedApplianceType, getActivityObject()!!.applianceName))
-                                                    getActivityObject()?.dismissLoader()
-                                                    //show the dialog to edit custom name
-                                                    uiRelatedClass.showBottomDialogForAddingCustomName(getActivityObject()!!, object : OnButtonClickCallbackWithStringParams {
-                                                        override fun onUserClicked(userPassedInfo: String) {
-                                                            /**need to call the LDAPI#2
-                                                             * */
-                                                            getActivityObject()?.showProgressBar()
-                                                            timerTaskToReadDeviceStatus(ipAddress, remoteId, userPassedInfo)
-                                                        }
-                                                    }, filtredHashMap, userAddedCustomNamesHashMap,
-                                                            getActivityObject()!!.selectedApplianceType, getActivityObject()!!.applianceName, getActivityObject()?.deviceInfo!!.usn)
-                                                }
-                                            })
-                                } else {
-                                    /** show a dialog to inform the user
-                                     * he has prev selected the same remote id
-                                     * */
-                                    getActivityObject()?.runOnUiThread {
-                                        getActivityObject()?.dismissLoader()
-                                        uiRelatedClass.showUserCustomDialogForPrevSelectedRemote(getActivityObject()!!, object : OnButtonClickCallback {
-                                            override fun onClick(isSucess: Boolean) {
-                                                gotoNextActivity(getActivityObject()!!.selectedApplianceType)
-                                            }
-                                        })
-                                    }
-                                }
+
+                                /**need to call the LDAPI#1
+                                 * */
+                                getActivityObject()?.showProgressBar()
+                                timerTaskToReadDeviceStatus(ipAddress, remoteId, customName)
+
                             } else if (status == 3) {
                                 //error
                                 getActivityObject()?.dismissLoader()
@@ -906,7 +913,7 @@ class IRTvOrTvpRemoteSelectionFragment : Fragment() {
         return modelRemoteDetails
     }
 
-    fun checkIfTheUserSelectedRemoteIsPrevSelected(userSelectedAppliance: String, userSelectedRemoteId: Int, macId: String): Boolean {
+    fun checkIfTheUserSelectedRemoteIsPrevSelected(userSelectedAppliance: String, userSelectedRemoteId: Int, userSelectedBrandId: Int, macId: String): Boolean {
         var sharedPreferences = getActivityObject()?.getSharedPreferences("Mavid", Context.MODE_PRIVATE)
         var gson = Gson()
 
@@ -922,8 +929,10 @@ class IRTvOrTvpRemoteSelectionFragment : Fragment() {
 
             if (modelRemoteSubAndMacDetils.mac == macId) {
                 for (modelRemoteDetails: ModelRemoteDetails in modelRemoteSubAndMacDetils.modelRemoteDetailsList) {
-                    if (modelRemoteDetails.selectedAppliance == userSelectedAppliance && modelRemoteDetails.remoteId == userSelectedRemoteId.toString()) {
-                        return true
+                    if (modelRemoteDetails.brandId == userSelectedBrandId.toString()) {
+                        if (modelRemoteDetails.selectedAppliance == userSelectedAppliance && modelRemoteDetails.remoteId == userSelectedRemoteId.toString()) {
+                            return true
+                        }
                     }
                 }
             }

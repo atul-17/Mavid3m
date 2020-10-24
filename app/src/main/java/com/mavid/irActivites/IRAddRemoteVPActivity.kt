@@ -534,15 +534,21 @@ class IRAddRemoteVPActivity : AppCompatActivity() {
         //device acknowledged or device sucess response
         when (selectedAppliance) {
             //tv
-            "1" -> {
+            "1",
+            "TV"
+            -> {
                 remoteId = tvRemoteId
             }
-            "2" -> {
+            "2",
+            "TVP"
+            -> {
                 //tvp
                 remoteId = tvpRemoteId
             }
             //ac
-            "3" -> {
+            "3",
+            "AC"
+            -> {
                 remoteId = acRemoteId
             }
         }

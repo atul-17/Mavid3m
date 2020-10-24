@@ -134,7 +134,50 @@ class IRAcRemoteSelectionActivity : AppCompatActivity() {
                                         isUserClickedOnPowerOn = true
                                         btnRemoteButtonName.visibility = View.GONE
                                         tvNosOfConfigs.visibility = View.GONE
-                                        sendRemoteDetailsToMavidDevUsingLdapi1(ipAddress, modelAcRemoteConfigurationsList[index].remoteId.toInt())
+                                        if (!checkIfTheUserSelectedRemoteIsPrevSelected(this@IRAcRemoteSelectionActivity.selectedApplianceType,
+                                                        modelAcRemoteConfigurationsList[index].remoteId.toInt(), this@IRAcRemoteSelectionActivity.applianceId, deviceInfo!!.usn)) {
+                                            /**show the user an options to edit custom for the appliance he has configured
+                                             * *
+                                             * */
+                                            getAppliancesListFromAllDevicesTheUserHasConfigured(getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
+                                                    object : OnCallingGetApiToGetCustomNames {
+                                                        override fun onResponse(userAddedCustomNamesHashMap: HashMap<String, String>) {
+                                                            /**
+                                                             * Filter out names which
+                                                             * are already used by the
+                                                             * user in another device
+                                                             * */
+                                                            val filtredHashMap: HashMap<String, String> =
+                                                                    filterOutDuplicateNamesWhichAreUsedByTheUser(userAddedCustomNamesHashMap, addPreDefinedPopularOptionsCustomName(selectedApplianceType,
+                                                                            applianceName))
+                                                            dismissLoader()
+                                                            //show the dialog to edit custom name
+                                                            uiRelatedClass.showBottomDialogForAddingCustomName(this@IRAcRemoteSelectionActivity, object : OnButtonClickCallbackWithStringParams {
+                                                                override fun onUserClicked(userPassedInfo: String) {
+                                                                    /**need to call the ldapi#1
+                                                                     * */
+                                                                    showProgressBar()
+                                                                    sendRemoteDetailsToMavidDevUsingLdapi1(ipAddress, modelAcRemoteConfigurationsList[index].remoteId.toInt(), userPassedInfo)
+                                                                }
+                                                            }, filtredHashMap, userAddedCustomNamesHashMap,
+                                                                    selectedApplianceType, applianceName, deviceInfo!!.usn)
+                                                        }
+                                                    })
+                                        } else {
+                                            /** show a dialog to inform the user
+                                             * he has prev selected the same remote id
+                                             * */
+                                            runOnUiThread {
+                                                dismissLoader()
+                                                uiRelatedClass.showUserCustomDialogForPrevSelectedRemote(this@IRAcRemoteSelectionActivity, object : OnButtonClickCallback {
+                                                    override fun onClick(isSucess: Boolean) {
+                                                        gotoNextActivity(selectedApplianceType)
+                                                    }
+                                                })
+                                            }
+                                        }
+
+
                                     } else {
                                         //power off did not work
                                         //inc the index
@@ -417,7 +460,7 @@ class IRAcRemoteSelectionActivity : AppCompatActivity() {
     }
 
 
-    fun checkIfTheUserSelectedRemoteIsPrevSelected(userSelectedAppliance: String, userSelectedRemoteId: Int, macId: String): Boolean {
+    fun checkIfTheUserSelectedRemoteIsPrevSelected(userSelectedAppliance: String, userSelectedRemoteId: Int, userSelectedBrandId: Int, macId: String): Boolean {
         var sharedPreferences = getSharedPreferences("Mavid", Context.MODE_PRIVATE)
         var gson = Gson()
 
@@ -433,8 +476,10 @@ class IRAcRemoteSelectionActivity : AppCompatActivity() {
 
             if (modelRemoteSubAndMacDetils.mac == macId) {
                 for (modelRemoteDetails: ModelRemoteDetails in modelRemoteSubAndMacDetils.modelRemoteDetailsList) {
-                    if (modelRemoteDetails.selectedAppliance == userSelectedAppliance && modelRemoteDetails.remoteId == userSelectedRemoteId.toString()) {
-                        return true
+                    if (modelRemoteDetails.brandId == userSelectedBrandId.toString()) {
+                        if (modelRemoteDetails.selectedAppliance == userSelectedAppliance && modelRemoteDetails.remoteId == userSelectedRemoteId.toString()) {
+                            return true
+                        }
                     }
                 }
             }
@@ -444,7 +489,7 @@ class IRAcRemoteSelectionActivity : AppCompatActivity() {
 
 
     /** LDAPI#1 */
-    fun sendRemoteDetailsToMavidDevUsingLdapi1(ipAddress: String, remoteId: Int) {
+    fun sendRemoteDetailsToMavidDevUsingLdapi1(ipAddress: String, remoteId: Int, customName: String) {
         showProgressBar()
         val payloadString = buildRemotePayloadJson(remoteId).toString()
         LibreMavidHelper.sendCustomCommands(ipAddress, LibreMavidHelper.COMMANDS.SEND_IR_REMOTE_DETAILS_AND_RETRIVING_BUTTON_LIST, payloadString,
@@ -457,67 +502,25 @@ class IRAcRemoteSelectionActivity : AppCompatActivity() {
                             val status = dataJsonObject.getInt("Status")
 
                             if (status == 2) {//device acknowledged
-                                //calling get api from with
-                                //all the devices present
-                                if (!checkIfTheUserSelectedRemoteIsPrevSelected(this@IRAcRemoteSelectionActivity.selectedApplianceType,
-                                                remoteId, deviceInfo!!.usn)) {
-                                    /**show the user an options to edit custom for the appliance he has configured
-                                     * *
-                                     * */
-                                    getAppliancesListFromAllDevicesTheUserHasConfigured(getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
-                                            object : OnCallingGetApiToGetCustomNames {
-                                                override fun onResponse(userAddedCustomNamesHashMap: HashMap<String, String>) {
-                                                    /**
-                                                     * Filter out names which
-                                                     * are already used by the
-                                                     * user in another device
-                                                     * */
-                                                    val filtredHashMap: HashMap<String, String> =
-                                                            filterOutDuplicateNamesWhichAreUsedByTheUser(userAddedCustomNamesHashMap, addPreDefinedPopularOptionsCustomName(selectedApplianceType,
-                                                                    applianceName))
-                                                    dismissLoader()
-                                                    //show the dialog to edit custom name
-                                                    uiRelatedClass.showBottomDialogForAddingCustomName(this@IRAcRemoteSelectionActivity, object : OnButtonClickCallbackWithStringParams {
-                                                        override fun onUserClicked(userPassedInfo: String) {
-                                                            /**need to call the user mgt post,delete apis
-                                                             * */
-                                                            showProgressBar()
 
-                                                            //need to delete the old appliance data ie tv/tvp/ac
-                                                            deleteUserDevice(getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
-                                                                    deviceInfo!!.usn,
-                                                                    getRemoteDetailsFromSharedPrefThatNeedsToBeDeleted(selectedApplianceType, deviceInfo!!.usn),
-                                                                    object : RestApiSucessFailureCallbacks {
-                                                                        override fun onSucessFailureCallbacks(isSucess: Boolean, modelRemoteDetails: ModelRemoteDetails?) {
+                                //need to delete the old appliance data ie tv/tvp/ac
+                                //post the newly selected applaince
+                                deleteUserDevice(getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
+                                        deviceInfo!!.usn,
+                                        getRemoteDetailsFromSharedPrefThatNeedsToBeDeleted(selectedApplianceType, deviceInfo!!.usn),
+                                        object : RestApiSucessFailureCallbacks {
+                                            override fun onSucessFailureCallbacks(isSucess: Boolean, modelRemoteDetails: ModelRemoteDetails?) {
 
-                                                                            Log.d(TAG, "newSelectedAppliance".plus(selectedApplianceType))
+                                                Log.d(TAG, "newSelectedAppliance".plus(selectedApplianceType))
 
-                                                                            //deleting from the app storage
+                                                //deleting from the app storage
 
-                                                                            deleteApplianceFromSharedPref(deviceInfo!!.usn, modelRemoteDetails)
+                                                deleteApplianceFromSharedPref(deviceInfo!!.usn, modelRemoteDetails)
 
-                                                                            postUserManagment(getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
-                                                                                    deviceInfo!!.usn, buidlRenoteDetails(remoteId, userPassedInfo))
-                                                                        }
-                                                                    })
-                                                        }
-                                                    }, filtredHashMap, userAddedCustomNamesHashMap,
-                                                            selectedApplianceType, applianceName, deviceInfo!!.usn)
-                                                }
-                                            })
-                                } else {
-                                    /** show a dialog to inform the user
-                                     * he has prev selected the same remote id
-                                     * */
-                                    runOnUiThread {
-                                        dismissLoader()
-                                        uiRelatedClass.showUserCustomDialogForPrevSelectedRemote(this@IRAcRemoteSelectionActivity, object : OnButtonClickCallback {
-                                            override fun onClick(isSucess: Boolean) {
-                                                gotoNextActivity(selectedApplianceType)
+                                                postUserManagment(getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
+                                                        deviceInfo!!.usn, buidlRenoteDetails(remoteId, customName))
                                             }
                                         })
-                                    }
-                                }
                             } else if (status == 3) {
                                 //error
                                 dismissLoader()
@@ -713,8 +716,8 @@ class IRAcRemoteSelectionActivity : AppCompatActivity() {
             "TVP"
             -> {
                 //tvp
-                popularOptionsHashMap["SETTOP BOX"] = deviceInfo!!.usn
-                applianceType = "SETTOP BOX"
+                popularOptionsHashMap["SET TOP BOX"] = deviceInfo!!.usn
+                applianceType = "SET TOP BOX"
             }
             "3",
             "AC"

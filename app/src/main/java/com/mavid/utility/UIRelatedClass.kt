@@ -4,6 +4,8 @@ import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Context
 import android.text.Editable
+import android.text.InputFilter
+import android.text.Spanned
 import android.text.TextWatcher
 import android.util.Log
 import android.view.LayoutInflater
@@ -160,7 +162,21 @@ class UIRelatedClass {
         val gvPopularOptions: GridView = view.findViewById(R.id.gvPopularOptions)
         val btnConfirm: AppCompatButton = view.findViewById(R.id.btnConfirm)
 
+
+//        val blockCharacterSet: String = "~#^|$%&*!";
+//
+//        val filter = object : InputFilter {
+//            override fun filter(p0: CharSequence, source: Int, start: Int, dest: Spanned?, dstart: Int, dend: Int): CharSequence? {
+//                if (source != null && blockCharacterSet.contains(("" + source))) {
+//                    return ""
+//                }
+//                return null
+//            }
+//        }
+
+
         val etCustomName: AppCompatEditText = view.findViewById(R.id.etCustomName)
+
 
         val ivCloseSheet: AppCompatImageView = view.findViewById(R.id.ivCloseSheet)
 
@@ -326,11 +342,11 @@ class UIRelatedClass {
             }
             "TVP" -> {
 
-                if (popularOptionsHashMap.containsKey("SETTOP BOX")) {
-                    defaultCustomName = "SETTOP BOX"
-                } else if (popularOptionsHashMap.containsKey("${brandName.toUpperCase()} SETTOP BOX")) {
-                    //ie Airtel Settop box,Tata Sky Settop box
-                    defaultCustomName = "${brandName.toUpperCase()} SETTOP BOX"
+                if (popularOptionsHashMap.containsKey("SET TOP BOX")) {
+                    defaultCustomName = "SET TOP BOX"
+                } else if (popularOptionsHashMap.containsKey("${brandName.toUpperCase()} SET TOP BOX")) {
+                    //ie Airtel Set top box,Tata Sky Set top box
+                    defaultCustomName = "${brandName.toUpperCase()} SET TOP BOX"
                 } else {
                     defaultCustomName = ""
                 }

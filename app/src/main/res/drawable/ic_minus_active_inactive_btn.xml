@@ -3,6 +3,6 @@
 
     <item android:state_enabled="true" android:drawable="@drawable/ic_minus_black"/>
 
-    <item android:state_enabled="false" android:drawable="@drawable/ic_minus_inactive_btn"/>
+    <item android:state_enabled="false" android:drawable="@drawable/ic_minus_active_btn"/>
 
 </selector>

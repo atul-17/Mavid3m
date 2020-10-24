@@ -16,6 +16,7 @@ import com.mavid.adapters.IRSelectRegionalTvpAdapter
 import com.mavid.adapters.IRSelectTvBrandsAdapter
 import com.mavid.libresdk.TaskManager.Discovery.Listeners.ListenerUtils.DeviceInfo
 import com.mavid.models.AcBrandsSucessRepoModel
+import com.mavid.models.ModelGetRegionalBodyResponse
 import com.mavid.models.ModelGetRegionalTvpPayloadSucess
 import com.mavid.models.TvBrandsSucessRepoModel
 import com.mavid.utility.RecyclerItemClickListener
@@ -72,18 +73,24 @@ class IRSelectTvOrTVPOrAcRegionalBrandsActivity : AppCompatActivity() {
         apiViewModel = ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory(application)).get(ApiViewModel::class.java)
 
         showProgressBar()
-        if (isTvp) {
-            //tvp
-            activityHeading.text = "Select your Regional Set Top Box"
-            getTVPBrandList(tvpBrandId.toInt())
-
-        } else if (isTv) {
-            activityHeading.text = "Select your TV Manufacturer"
-            getTvBrandsList()
-        } else if (isAc) {
-            //ac
-            activityHeading.text = "Select your Ac Manufacturer"
-            getAcBrandsList()
+        when {
+            isTvp -> {
+                //tvp
+                activityHeading.text = "Select your Regional Set Top Box"
+                getTVPBrandList(tvpBrandId.toInt())
+            }
+            isTv -> {
+                activityHeading.text = "Select your TV Manufacturer"
+                getTvBrandsList()
+            }
+            isAc -> {
+                //ac
+                activityHeading.text = "Select your Ac Manufacturer"
+                getAcBrandsList()
+            }
+        }
+        llGoBack.setOnClickListener {
+            finish()
         }
     }
 
@@ -167,16 +174,34 @@ class IRSelectTvOrTVPOrAcRegionalBrandsActivity : AppCompatActivity() {
         }))
     }
 
+
+    fun inflateRecyclerView(it: ModelGetRegionalBodyResponse) {
+        val sortedList = it.modelGetTvpBrandsSucessResponseList?.sortedBy { it.title } as MutableList<ModelGetRegionalTvpPayloadSucess>
+        rvTvOrTvpOrAcBrandsList.visibility = View.VISIBLE
+        llNoDevices.visibility = View.GONE
+        setTVPAdapter(sortedList)
+    }
+
     fun getTVPBrandList(id: Int) {
         apiViewModel.getRegionalTvpBrandListApiResponse(id)?.observe(this, Observer {
+
             if (it.modelGetTvpBrandsSucessResponseList != null) {
-
-                val sortedList = it.modelGetTvpBrandsSucessResponseList?.sortedBy { it.title } as MutableList<ModelGetRegionalTvpPayloadSucess>
-
-                setTVPAdapter(sortedList)
+                if (it.modelGetTvpBrandsSucessResponseList?.size == 1) {
+                    if (it.modelGetTvpBrandsSucessResponseList!![0].remoteIds == "-1") {
+                        //no data present
+                        //show empty error
+                        llNoDevices.visibility = View.VISIBLE
+                        rvTvOrTvpOrAcBrandsList.visibility = View.GONE
+                    } else {
+                        inflateRecyclerView(it)
+                    }
+                } else {
+                    inflateRecyclerView(it)
+                }
             } else {
-                val volleyError = it?.volleyError
 
+
+                val volleyError = it?.volleyError
 
                 if (volleyError is TimeoutError || volleyError is NoConnectionError) {
 
