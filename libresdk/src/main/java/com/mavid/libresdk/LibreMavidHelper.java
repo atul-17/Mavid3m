@@ -20,9 +20,9 @@ import com.mavid.libresdk.TaskManager.SAC.Listeners.SACListenerWithResponse;
  */
 
 public class LibreMavidHelper {
-    public static String symmentricKey="";
+    public static String symmentricKey = "";
 
-    public interface COMMANDS{
+    public interface COMMANDS {
         int START_OTA_UPGRADE = 1;
         int START_BSL_UPGRADE = 2;
         int ASK_ALEXA_REFRESH_TOKEN = 208;
@@ -32,12 +32,12 @@ public class LibreMavidHelper {
         int UPDATE_LOCALE = 237;
         int COMP_APP_READ_ENV = 249;
         int COMP_APP_WRITE_ENV = 248;
-         int START_BT_SOURCE=242;
-        int START_BT_SEARCH=243;
-        int START_BT_CONNECT=244;
-        int START_BT_STATUS=245;
-        int START_BT_SOURCE_List=240;
-        int START_BT_SOURCE_List2=241;
+        int START_BT_SOURCE = 242;
+        int START_BT_SEARCH = 243;
+        int START_BT_CONNECT = 244;
+        int START_BT_STATUS = 245;
+        int START_BT_SOURCE_List = 240;
+        int START_BT_SOURCE_List2 = 241;
         int FW_URL = 239;
 
         int BATTERY_STATUS = 238;
@@ -51,7 +51,22 @@ public class LibreMavidHelper {
 
     }
 
-    public interface REMOTECONTROLBUTTONNAME{
+    public interface AC_REMOTE_CONTROLS {
+        String AC_POWER_ON_BUTTON = "PWR_ON";
+        String AC_POWER_OFF_BUTTON = "PWR_OFF";
+
+        String AC_TEMP_UP = "TEMP_UP";
+        String AC_TEMP_DOWN = "TEMP_DOWN";
+
+        String AC_TEMP = "TEMP";
+        String AC_MODE = "MODE";
+
+        String AC_SWING = "SWING";
+        String AC_DIRECTION = "DIRECTION";
+        String AC_FAN_SPEED = "FAN_SPEED";
+    }
+
+    public interface REMOTECONTROLBUTTONNAME {
         String POWER_BUTTON = "POWER";
         String EXIT_BUTTON = "EXIT";
 
@@ -62,7 +77,7 @@ public class LibreMavidHelper {
         String GUIDE_BUTTON = "GUIDE";
 
         String LANG_BUTTON = "LANGUAGE";
-        String VOLUME_MUTE_BUTTON = "VOL_MUTE";
+        String VOLUME_MUTE_BUTTON = "VOL MUTE";
 
         String BACK_BUTTON = "BACK";
 
@@ -76,6 +91,8 @@ public class LibreMavidHelper {
 
         String VOLUME_DOWN = "VOL DOWN";
         String OK_BUTTON = "OK";
+
+        String SELECT_BUTTON = "SELECT";
 
         String UP_BUTTON = "UP";
         String DOWN_BUTTON = "DOWN";
@@ -120,105 +137,119 @@ public class LibreMavidHelper {
 
     }
 
-    public static void setAdvertiserMessage(String message){
+
+    public static void setAdvertiserMessage(String message) {
         DiscoveryManager.getManager().setAdvertisingMessage(message);
     }
-    public static void setAdvertiseeValidator(String message){
-      //  DiscoveryManager.getManager().setAdvertiseeValidator(message);
+
+    public static void setAdvertiseeValidator(String message) {
+        //  DiscoveryManager.getManager().setAdvertiseeValidator(message);
     }
-    public static void startDiscovery(DeviceListener deviceListener) throws Exception{
+
+    public static void startDiscovery(DeviceListener deviceListener) throws Exception {
         DiscoveryManager.getManager().startDiscovery(deviceListener);
     }
-    public static void stopdiscovery(){
+
+    public static void stopdiscovery() {
         DiscoveryManager.getManager().stopDiscovery();
     }
-    public static void configure(Bundle params, SACListener sacListener){
-        SACManager.getManager().configure(params,sacListener);
+
+    public static void configure(Bundle params, SACListener sacListener) {
+        SACManager.getManager().configure(params, sacListener);
     }
 
-    public static byte [] configureBLE(Bundle params, SACListener sacListener){
-       return SACManager.getManager().configureBLE(params,sacListener);
-    }
-    public static void sendCustomSACMessage(byte[] message,SACListenerWithResponse sacListenerWithResponse){
-        SACManager.getManager().sendCustomSACMessage(message,sacListenerWithResponse);
-    }
-    public static void sendCustomSACMessage(String message,SACListenerWithResponse sacListenerWithResponse){
-      SACManager.getManager().sendCustomSACMessage(message.getBytes(),sacListenerWithResponse);
+    public static byte[] configureBLE(Bundle params, SACListener sacListener) {
+        return SACManager.getManager().configureBLE(params, sacListener);
     }
 
-    public static void setZigBeeAutoRead(String ipAddress, String value, CommandStatusListenerWithResponse commandStatusListenerWithResponse){
-        CommunicationManager.getManager().setReadZigBee(ipAddress,value,commandStatusListenerWithResponse);
+    public static void sendCustomSACMessage(byte[] message, SACListenerWithResponse sacListenerWithResponse) {
+        SACManager.getManager().sendCustomSACMessage(message, sacListenerWithResponse);
+    }
+
+    public static void sendCustomSACMessage(String message, SACListenerWithResponse sacListenerWithResponse) {
+        SACManager.getManager().sendCustomSACMessage(message.getBytes(), sacListenerWithResponse);
+    }
+
+    public static void setZigBeeAutoRead(String ipAddress, String value, CommandStatusListenerWithResponse commandStatusListenerWithResponse) {
+        CommunicationManager.getManager().setReadZigBee(ipAddress, value, commandStatusListenerWithResponse);
 
     }
-    public static void advertise() throws WrongStepCallException{
+
+    public static void advertise() throws WrongStepCallException {
         try {
             DiscoveryManager.getManager().advertise();
         } catch (WrongStepCallException e) {
             throw e;
         }
     }
-    public static void advertiseWithIp(String ip,Context context) throws WrongStepCallException {
+
+    public static void advertiseWithIp(String ip, Context context) throws WrongStepCallException {
         try {
-            DiscoveryManager.getManager().advertise(ip,context);
+            DiscoveryManager.getManager().advertise(ip, context);
         } catch (WrongStepCallException e) {
             throw e;
         }
     }
 
-        @Deprecated
-    public static void startOTAUpgrade(String ipAddress,CommandStatusListener commandStatusListener){
-        CommunicationManager.getManager().startOTAUpgrade(ipAddress,commandStatusListener);
-
-    }
-    public static void loginWithAmazon(AlexaParams params, Context context, AlexaLoginListener alexaLoginListener){
-        AlexaManager.getManager().loginWithAmazon(params,context,alexaLoginListener);
-    }
-
-    public static void askRefreshToken(String ipAddress,CommandStatusListenerWithResponse commandStatusListenerWithResponse){
-        CommunicationManager.getManager().askRefreshToken(ipAddress,commandStatusListenerWithResponse);
-    }
-    public static void askRefreshTokenWithNetwork(String ipAddress, CommandStatusListenerWithResponse commandStatusListenerWithResponse, Network network){
-        CommunicationManager.getManager().askRefreshTokenWithNetwork(ipAddress,commandStatusListenerWithResponse,network);
-    }
-    public static void askMetaDataInfo(String ipAddress,CommandStatusListenerWithResponse commandStatusListenerWithResponse){
-        CommunicationManager.getManager().askMetaDataInfo(ipAddress,commandStatusListenerWithResponse);
-    }
-
-    public static void amazonSignout(String ipAddress,CommandStatusListener commandStatusListener ){
-        CommunicationManager.getManager().amazonSignout(ipAddress,commandStatusListener);
-    }
-
-    public static void setAlexaLocale(String ipAddress,String locale,CommandStatusListenerWithResponse commandStatusListenerWithResponse){
-        CommunicationManager.getManager().setAlexaLocale(ipAddress,locale,commandStatusListenerWithResponse);
+    @Deprecated
+    public static void startOTAUpgrade(String ipAddress, CommandStatusListener commandStatusListener) {
+        CommunicationManager.getManager().startOTAUpgrade(ipAddress, commandStatusListener);
 
     }
 
-    public static void setAUtoOTAWrite(String ipAddress, String value, CommandStatusListenerWithResponse commandStatusListenerWithResponse){
-        CommunicationManager.getManager().setAutoOtaWrite(ipAddress,value,commandStatusListenerWithResponse);
-
-    }
-    public static void setZigBeeWrite(String ipAddress, String value, CommandStatusListenerWithResponse commandStatusListenerWithResponse){
-        CommunicationManager.getManager().setZigBeeWrite(ipAddress,value,commandStatusListenerWithResponse);
-
-    }
-    public static void setAUtoOTARead(String ipAddress, String value, CommandStatusListenerWithResponse commandStatusListenerWithResponse){
-        CommunicationManager.getManager().setAutoOtaRead(ipAddress,value,commandStatusListenerWithResponse);
-
+    public static void loginWithAmazon(AlexaParams params, Context context, AlexaLoginListener alexaLoginListener) {
+        AlexaManager.getManager().loginWithAmazon(params, context, alexaLoginListener);
     }
 
+    public static void askRefreshToken(String ipAddress, CommandStatusListenerWithResponse commandStatusListenerWithResponse) {
+        CommunicationManager.getManager().askRefreshToken(ipAddress, commandStatusListenerWithResponse);
+    }
+
+    public static void askRefreshTokenWithNetwork(String ipAddress, CommandStatusListenerWithResponse commandStatusListenerWithResponse, Network network) {
+        CommunicationManager.getManager().askRefreshTokenWithNetwork(ipAddress, commandStatusListenerWithResponse, network);
+    }
+
+    public static void askMetaDataInfo(String ipAddress, CommandStatusListenerWithResponse commandStatusListenerWithResponse) {
+        CommunicationManager.getManager().askMetaDataInfo(ipAddress, commandStatusListenerWithResponse);
+    }
+
+    public static void amazonSignout(String ipAddress, CommandStatusListener commandStatusListener) {
+        CommunicationManager.getManager().amazonSignout(ipAddress, commandStatusListener);
+    }
+
+    public static void setAlexaLocale(String ipAddress, String locale, CommandStatusListenerWithResponse commandStatusListenerWithResponse) {
+        CommunicationManager.getManager().setAlexaLocale(ipAddress, locale, commandStatusListenerWithResponse);
+
+    }
+
+    public static void setAUtoOTAWrite(String ipAddress, String value, CommandStatusListenerWithResponse commandStatusListenerWithResponse) {
+        CommunicationManager.getManager().setAutoOtaWrite(ipAddress, value, commandStatusListenerWithResponse);
+
+    }
+
+    public static void setZigBeeWrite(String ipAddress, String value, CommandStatusListenerWithResponse commandStatusListenerWithResponse) {
+        CommunicationManager.getManager().setZigBeeWrite(ipAddress, value, commandStatusListenerWithResponse);
+
+    }
+
+    public static void setAUtoOTARead(String ipAddress, String value, CommandStatusListenerWithResponse commandStatusListenerWithResponse) {
+        CommunicationManager.getManager().setAutoOtaRead(ipAddress, value, commandStatusListenerWithResponse);
+
+    }
 
 
     public static void sendAlexaAuthDetails(String ipAddress, CompanionProvisioningInfo companionProvisioningInfo
-            , CommandStatusListenerWithResponse commandStatusListener){
-        CommunicationManager.getManager().sendAlexaAuthDetails(ipAddress, companionProvisioningInfo,commandStatusListener);
+            , CommandStatusListenerWithResponse commandStatusListener) {
+        CommunicationManager.getManager().sendAlexaAuthDetails(ipAddress, companionProvisioningInfo, commandStatusListener);
     }
 
     public static void sendCustomCommands(String ipAddress, int messageBox, String message
-            ,CommandStatusListenerWithResponse commandStatusListener){
-        CommunicationManager.getManager().sendCustomCommands(ipAddress,messageBox,message,commandStatusListener);
+            , CommandStatusListenerWithResponse commandStatusListener) {
+        CommunicationManager.getManager().sendCustomCommands(ipAddress, messageBox, message, commandStatusListener);
     }
+
     public static void sendCustomCommands(String ipAddress, int messageBox, String message
-            ,CommandStatusListener commandStatusListener){
-        CommunicationManager.getManager().sendCustomCommands(ipAddress,messageBox,message,commandStatusListener);
+            , CommandStatusListener commandStatusListener) {
+        CommunicationManager.getManager().sendCustomCommands(ipAddress, messageBox, message, commandStatusListener);
     }
 }
