@@ -22,6 +22,7 @@ import com.mavid.libresdk.LibreMavidHelper
 import com.mavid.libresdk.TaskManager.Communication.Listeners.CommandStatusListenerWithResponse
 import com.mavid.libresdk.TaskManager.Discovery.Listeners.ListenerUtils.DeviceInfo
 import com.mavid.libresdk.TaskManager.Discovery.Listeners.ListenerUtils.MessageInfo
+import com.mavid.models.ModelLdapi2AcModes
 import com.mavid.models.ModelRemoteDetails
 import com.mavid.models.ModelRemoteSubAndMacDetils
 import com.mavid.utility.ApiConstants
@@ -67,6 +68,10 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
     private var LDAPI2_TIMOUT = 1
 
     var workingRemoteButtonsHashMap: HashMap<String, String> = HashMap()
+
+
+    var modelLdapi2AcModesList: MutableList<ModelLdapi2AcModes> = ArrayList()
+
 
     val myHandler: Handler = object : Handler() {
         override fun handleMessage(msg: Message) {
@@ -265,7 +270,9 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
                     val statusCode = responseJSONObject.getInt("Status")
                     when (statusCode) {
 
-                        3 -> {
+                        3,
+                        2
+                        -> {
                             myHandler.removeCallbacksAndMessages(LDAPI2_TIMOUT)
                             myHandler?.removeCallbacksAndMessages(null)
                             irButtonListTimerTask?.cancel()
@@ -273,16 +280,29 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
 
                             val payloadJsonObject = responseJSONObject.getJSONObject("payload")
 
-                            val buttonJsonArray = payloadJsonObject.getJSONArray("keys")
+                            if (payloadJsonObject.has("keys")) {
 
-                            Log.d(TAG, "buttonList: ".plus(buttonJsonArray.toString()))
+                                val buttonJsonArray = payloadJsonObject.getJSONArray("keys")
 
-                            for (i in 0 until buttonJsonArray.length()) {
-                                val buttonNameString = buttonJsonArray[i] as String
-                                workingRemoteButtonsHashMap[buttonNameString] = "1"
+                                Log.d(TAG, "buttonList: ".plus(buttonJsonArray.toString()))
+
+                                for (i in 0 until buttonJsonArray.length()) {
+                                    val buttonNameString = buttonJsonArray[i] as String
+                                    workingRemoteButtonsHashMap[buttonNameString] = "1"
+                                }
+
+                            } else if (payloadJsonObject.has("modes")) {
+
+                                var modesJsonArray = payloadJsonObject.getJSONArray("modes")
+
+                                Log.d(TAG, "modes".plus(modesJsonArray.toString()))
+
+                                modelLdapi2AcModesList = ArrayList()
+
+                                for (i in 0 until modesJsonArray.length()) {
+                                    modelLdapi2AcModesList.add(parseLdapi2AcResponse(modesJsonArray[i] as JSONObject))
+                                }
                             }
-
-
                             //updating the appliance info in the app
 
                             updateApplianceInfoInSharedPref(modelRemoteDetailsList[index], deviceInfo!!.usn)
@@ -319,6 +339,25 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
 
             }
         })
+    }
+
+
+    fun parseLdapi2AcResponse(jsonObject: JSONObject): ModelLdapi2AcModes {
+        var modelLdapi2AcModes = ModelLdapi2AcModes()
+
+        modelLdapi2AcModes.mode = jsonObject.getString("mode")
+        modelLdapi2AcModes.isDefault = jsonObject.getBoolean("is_default")
+
+        modelLdapi2AcModes.tempAllowed = jsonObject.getBoolean("temp_allowed")
+        modelLdapi2AcModes.minTemp = jsonObject.getInt("min_temp")
+        modelLdapi2AcModes.maxTemp = jsonObject.getInt("max_temp")
+
+        modelLdapi2AcModes.speedAllowed = jsonObject.getBoolean("speed_allowed")
+        modelLdapi2AcModes.directionAllowed = jsonObject.getBoolean("direction_allowed")
+
+        modelLdapi2AcModes.swingAllowed = jsonObject.getBoolean("swing_allowed")
+
+        return modelLdapi2AcModes
     }
 
     fun updateApplianceInfoInSharedPref(modelRemoteDetails: ModelRemoteDetails, macId: String) {
@@ -363,11 +402,17 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
         editor = sharedPreferences!!.edit()
         editor.putString("applianceInfoList", modelRemoteDetailsString)
 
-        val workingRemoteButtonsString = gson.toJson(workingRemoteButtonsHashMap)
+
+
         if (modelRemoteDetails.selectedAppliance == "1" || modelRemoteDetails.selectedAppliance == "TV") {
+            val workingRemoteButtonsString = gson.toJson(workingRemoteButtonsHashMap)
             editor.putString("workingTVRemoteButtons", workingRemoteButtonsString)
         } else if (modelRemoteDetails.selectedAppliance == "2" || modelRemoteDetails.selectedAppliance == "TVP") {
+            val workingRemoteButtonsString = gson.toJson(workingRemoteButtonsHashMap)
             editor.putString("workingTVPRemoteButtons", workingRemoteButtonsString)
+        } else if (modelRemoteDetails.selectedAppliance == "3" || modelRemoteDetails.selectedAppliance == "AC") {
+            val workingRemoteButtonsString = gson.toJson(modelLdapi2AcModesList)
+            editor.putString("workingACRemoteButtons", workingRemoteButtonsString)
         }
         editor.apply()
     }
@@ -623,24 +668,7 @@ class IRRestoreSelectionActivity : AppCompatActivity() {
                             if (status == 2) {
                                 Log.d(TAG, "response_from_ldapi1" + messageInfo?.message)
 
-                                if (modelRemoteDetails.selectedAppliance == "1" || modelRemoteDetails.selectedAppliance == "TV"
-                                        || modelRemoteDetails.selectedAppliance == "2" || modelRemoteDetails.selectedAppliance == "TVP") {
-                                    timerTaskToReadDeviceStatus(ipAddress, modelRemoteDetails.remoteId.toInt(), modelRemoteDetails.selectedAppliance)
-                                } else {
-                                    //updating the appliance info in the app
-
-                                    updateApplianceInfoInSharedPref(modelRemoteDetailsList[index], deviceInfo!!.usn)
-
-                                    //inc to next appliance from the list
-                                    index += 1
-
-                                    dismissLoader()
-
-                                    //check if the config is done
-                                    checkWhetherRemoteConfigurationIsDone()
-
-                                    updateSelectedApplianceTextView()
-                                }
+                                timerTaskToReadDeviceStatus(ipAddress, modelRemoteDetails.remoteId.toInt(), modelRemoteDetails.selectedAppliance)
 
                             } else if (status == 3) {
                                 //error

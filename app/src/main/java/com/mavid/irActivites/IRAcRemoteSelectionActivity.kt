@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.os.Handler
+import android.os.Message
 import android.util.Log
 import android.view.View
 import android.view.Window
@@ -23,6 +25,7 @@ import com.mavid.libresdk.LibreMavidHelper
 import com.mavid.libresdk.TaskManager.Communication.Listeners.CommandStatusListenerWithResponse
 import com.mavid.libresdk.TaskManager.Discovery.Listeners.ListenerUtils.DeviceInfo
 import com.mavid.libresdk.TaskManager.Discovery.Listeners.ListenerUtils.MessageInfo
+import com.mavid.models.ModelLdapi2AcModes
 import com.mavid.models.ModelRemoteDetails
 import com.mavid.models.ModelRemoteSubAndMacDetils
 import com.mavid.models.ModelSelectAcRemotePayload
@@ -33,6 +36,9 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.nio.charset.Charset
+import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
 class IRAcRemoteSelectionActivity : AppCompatActivity() {
 
@@ -62,10 +68,34 @@ class IRAcRemoteSelectionActivity : AppCompatActivity() {
 
     var modelRemoteSubAndMacDetils = ModelRemoteSubAndMacDetils()
 
-    var workingRemoteButtonsHashMap: HashMap<String, String> = HashMap()
-
     var isUserClickedOnPowerOn = false
 
+    var irButtonListTimerTask: Timer? = null
+
+
+//    var workingRemoteButtonsHashMap: HashMap<String, String> = HashMap()
+
+    var modelLdapi2AcModesList: MutableList<ModelLdapi2AcModes> = ArrayList()
+
+
+    private var LDAPI2_TIMOUT = 1
+
+    val myHandler: Handler = object : Handler() {
+        override fun handleMessage(msg: Message) {
+            val what: Int = msg.what
+            when (what) {
+                LDAPI2_TIMOUT -> {
+                    runOnUiThread {
+                        dismissLoader()
+                        irButtonListTimerTask?.cancel()
+                        Log.d(TAG, "Error")
+                        uiRelatedClass.buidCustomSnackBarWithButton(this@IRAcRemoteSelectionActivity, "There sees to be an error!!.Please try after some time",
+                                "Go Back", this@IRAcRemoteSelectionActivity)
+                    }
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -156,7 +186,7 @@ class IRAcRemoteSelectionActivity : AppCompatActivity() {
                                                                 override fun onUserClicked(userPassedInfo: String) {
                                                                     /**need to call the ldapi#1
                                                                      * */
-                                                                    showProgressBar()
+
                                                                     sendRemoteDetailsToMavidDevUsingLdapi1(ipAddress, modelAcRemoteConfigurationsList[index].remoteId.toInt(), userPassedInfo)
                                                                 }
                                                             }, filtredHashMap, userAddedCustomNamesHashMap,
@@ -302,6 +332,129 @@ class IRAcRemoteSelectionActivity : AppCompatActivity() {
         Log.d(TAG, "ldapi3_data_params".plus(payloadJsonObject.toString()))
 
         return payloadJsonObject.toString()
+    }
+
+
+    fun getDeviceLdapi2WorkingButtonListForAc(ipdAddress: String, remoteId: Int, customName: String) {
+        LibreMavidHelper.sendCustomCommands(ipdAddress,
+                LibreMavidHelper.COMMANDS.SEND_IR_REMOTE_DETAILS_AND_RETRIVING_BUTTON_LIST,
+                buildPayloadForLdapi2(remoteId).toString(), object : CommandStatusListenerWithResponse {
+            override fun response(messageInfo: MessageInfo?) {
+
+                Log.d(TAG, "ldapi#2_response".plus(messageInfo?.message))
+
+                try {
+                    val responseJSONObject = JSONObject(messageInfo?.message)
+                    val statusCode = responseJSONObject.getInt("Status")
+
+                    when (statusCode) {
+                        2 -> {
+
+                            myHandler.removeCallbacksAndMessages(LDAPI2_TIMOUT)
+                            myHandler?.removeCallbacksAndMessages(null)
+                            irButtonListTimerTask?.cancel()
+
+                            val payloadJsonObject = responseJSONObject.getJSONObject("payload")
+
+                            var modesJsonArray = payloadJsonObject.getJSONArray("modes")
+
+                            Log.d(TAG, "modes".plus(modesJsonArray.toString()))
+
+                            modelLdapi2AcModesList = ArrayList()
+
+                            for (i in 0 until modesJsonArray.length()) {
+                                modelLdapi2AcModesList.add(parseLdapi2Response(modesJsonArray[i] as JSONObject))
+                            }
+
+                            //deleting from the app storage
+                            deleteUserDevice(getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
+                                    deviceInfo!!.usn,
+                                    getRemoteDetailsFromSharedPrefThatNeedsToBeDeleted(selectedApplianceType, deviceInfo!!.usn),
+                                    object : RestApiSucessFailureCallbacks {
+                                        override fun onSucessFailureCallbacks(isSucess: Boolean, modelRemoteDetails: ModelRemoteDetails?) {
+
+                                            Log.d(TAG, "newSelectedAppliance".plus(selectedApplianceType))
+
+                                            //need to delete the old appliance data ie tv/tvp/ac
+                                            //post the newly selected applaince
+
+                                            deleteApplianceFromSharedPref(deviceInfo!!.usn, modelRemoteDetails)
+
+                                            postUserManagment(getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
+                                                    deviceInfo!!.usn, buidlRenoteDetails(remoteId, customName))
+                                        }
+                                    })
+                        }
+                    }
+
+                } catch (e: JSONException) {
+                    irButtonListTimerTask?.cancel()
+                    myHandler.removeCallbacksAndMessages(LDAPI2_TIMOUT)
+                    dismissLoader()
+                    Log.d(TAG, "exeception:".plus(e.toString()))
+                    uiRelatedClass.buidCustomSnackBarWithButton(this@IRAcRemoteSelectionActivity, "There sees to be an error!!.Please try after some time",
+                            "Go Back", this@IRAcRemoteSelectionActivity)
+                }
+            }
+
+            override fun failure(e: java.lang.Exception?) {
+                irButtonListTimerTask?.cancel()
+                myHandler.removeCallbacksAndMessages(LDAPI2_TIMOUT)
+                dismissLoader()
+                Log.d(TAG, "exeception:".plus(e.toString()))
+                uiRelatedClass.buidCustomSnackBarWithButton(this@IRAcRemoteSelectionActivity, "There sees to be an error!!.Please try after some time",
+                        "Go Back", this@IRAcRemoteSelectionActivity)
+            }
+
+            override fun success() {
+
+            }
+
+        })
+    }
+
+    fun parseLdapi2Response(jsonObject: JSONObject): ModelLdapi2AcModes {
+        var modelLdapi2AcModes = ModelLdapi2AcModes()
+
+        modelLdapi2AcModes.mode = jsonObject.getString("mode")
+        modelLdapi2AcModes.isDefault = jsonObject.getBoolean("is_default")
+
+        modelLdapi2AcModes.tempAllowed = jsonObject.getBoolean("temp_allowed")
+        modelLdapi2AcModes.minTemp = jsonObject.getInt("min_temp")
+        modelLdapi2AcModes.maxTemp = jsonObject.getInt("max_temp")
+
+        modelLdapi2AcModes.speedAllowed = jsonObject.getBoolean("speed_allowed")
+        modelLdapi2AcModes.directionAllowed = jsonObject.getBoolean("direction_allowed")
+
+        modelLdapi2AcModes.swingAllowed = jsonObject.getBoolean("swing_allowed")
+
+        return modelLdapi2AcModes
+    }
+
+    override fun onBackPressed() {
+        myHandler.removeCallbacksAndMessages(null)
+        super.onBackPressed()
+    }
+
+    fun buildPayloadForLdapi2(remoteId: Int): JSONObject {
+        val payloadJsonObject: JSONObject = JSONObject()
+
+        payloadJsonObject.put("ID", 2)
+
+        val dataJsonObject = JSONObject()
+        /** <ID>: 1 : TV
+        2 : STB
+        3 : AC*/
+
+        dataJsonObject.put("appliance", selectedApplianceType.toInt())//tv//tvp//ac
+
+        dataJsonObject.put("rId", remoteId)
+
+        payloadJsonObject.put("data", dataJsonObject)
+
+        Log.d(TAG, "ldapi#2_payload".plus(payloadJsonObject.toString()))
+
+        return payloadJsonObject
     }
 
     fun getAcRemoteSelectionData(applianceId: Int) {
@@ -487,10 +640,22 @@ class IRAcRemoteSelectionActivity : AppCompatActivity() {
         return false
     }
 
+    /** Call the LDAPI#2 every 5 seconds and check the status */
+    fun timerTaskToReadDeviceStatus(ipdAddress: String, remoteId: Int, customName: String) {
+        irButtonListTimerTask = Timer()
+        myHandler.sendEmptyMessageDelayed(LDAPI2_TIMOUT, 25000);
+        showProgressBar()
+        irButtonListTimerTask?.schedule(object : TimerTask() {
+            override fun run() {
+                Log.d(TAG, "callingLdapi#2 every 5 secs")
+                getDeviceLdapi2WorkingButtonListForAc(ipdAddress, remoteId, customName)
+            }
+
+        }, 0, 5000)
+    }
 
     /** LDAPI#1 */
     fun sendRemoteDetailsToMavidDevUsingLdapi1(ipAddress: String, remoteId: Int, customName: String) {
-        showProgressBar()
         val payloadString = buildRemotePayloadJson(remoteId).toString()
         LibreMavidHelper.sendCustomCommands(ipAddress, LibreMavidHelper.COMMANDS.SEND_IR_REMOTE_DETAILS_AND_RETRIVING_BUTTON_LIST, payloadString,
                 object : CommandStatusListenerWithResponse {
@@ -502,25 +667,10 @@ class IRAcRemoteSelectionActivity : AppCompatActivity() {
                             val status = dataJsonObject.getInt("Status")
 
                             if (status == 2) {//device acknowledged
+                                //call ldapi2 to get button list
 
-                                //need to delete the old appliance data ie tv/tvp/ac
-                                //post the newly selected applaince
-                                deleteUserDevice(getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
-                                        deviceInfo!!.usn,
-                                        getRemoteDetailsFromSharedPrefThatNeedsToBeDeleted(selectedApplianceType, deviceInfo!!.usn),
-                                        object : RestApiSucessFailureCallbacks {
-                                            override fun onSucessFailureCallbacks(isSucess: Boolean, modelRemoteDetails: ModelRemoteDetails?) {
+                                timerTaskToReadDeviceStatus(ipAddress, remoteId, customName)
 
-                                                Log.d(TAG, "newSelectedAppliance".plus(selectedApplianceType))
-
-                                                //deleting from the app storage
-
-                                                deleteApplianceFromSharedPref(deviceInfo!!.usn, modelRemoteDetails)
-
-                                                postUserManagment(getSharedPreferences("Mavid", Context.MODE_PRIVATE)!!.getString("sub", ""),
-                                                        deviceInfo!!.usn, buidlRenoteDetails(remoteId, customName))
-                                            }
-                                        })
                             } else if (status == 3) {
                                 //error
                                 dismissLoader()
@@ -1058,7 +1208,7 @@ class IRAcRemoteSelectionActivity : AppCompatActivity() {
         modelRemoteDetailsString = gson.toJson(modelRemoteSubAndMacDetils)
 
 
-        val workingRemoteButtonsString = gson.toJson(workingRemoteButtonsHashMap)
+        val workingRemoteButtonsString = gson.toJson(modelLdapi2AcModesList)
 
         var editor: SharedPreferences.Editor
         editor = sharedPreferences!!.edit()

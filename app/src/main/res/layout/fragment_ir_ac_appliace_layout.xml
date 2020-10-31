@@ -53,7 +53,8 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:background="@color/alexaBlue">
+            android:id="@+id/frameBg"
+            android:background="@color/brand_orange">
 
             <RelativeLayout
                 android:layout_width="match_parent"
@@ -62,16 +63,17 @@
                 <androidx.appcompat.widget.AppCompatTextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_alignTop="@+id/tvTemp"
-                    android:layout_alignRight="@+id/tvTemp"
+                    android:layout_alignTop="@+id/tvCurrentTemp"
+                    android:layout_toRightOf="@+id/tvCurrentTemp"
                     android:fontFamily="@font/quicksand_regular"
                     android:text=".C"
+                    android:id="@+id/tvTempUnit"
                     android:textColor="@color/white"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
                 <androidx.appcompat.widget.AppCompatTextView
-                    android:id="@+id/tvTemp"
+                    android:id="@+id/tvCurrentTemp"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_centerHorizontal="true"
@@ -79,7 +81,8 @@
                     android:layout_marginBottom="20dp"
                     android:fontFamily="@font/quicksand_regular"
                     android:gravity="center"
-                    android:text="20"
+                    android:text="21"
+                    android:layout_marginTop="5dp"
                     android:textColor="@color/white"
                     android:textSize="54sp"
                     android:textStyle="bold" />
@@ -87,14 +90,15 @@
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_alignBottom="@+id/tvTemp"
-                    android:layout_toEndOf="@+id/tvTemp"
+                    android:layout_alignBottom="@+id/tvCurrentTemp"
+                    android:layout_toEndOf="@+id/tvCurrentTemp"
                     android:orientation="horizontal">
 
                     <androidx.appcompat.widget.AppCompatImageView
                         android:layout_width="25dp"
                         android:layout_height="25dp"
-                        android:src="@drawable/ic_sun_white" />
+                        android:id="@+id/ivModeIcon"
+                        android:src="@drawable/ic_ac_cooling" />
 
                     <androidx.appcompat.widget.AppCompatTextView
                         android:layout_width="wrap_content"
@@ -103,7 +107,8 @@
                         android:layout_marginLeft="5dp"
                         android:fontFamily="@font/quicksand_regular"
                         android:gravity="right"
-                        android:text="Heating"
+                        android:text=""
+                        android:id="@+id/tvAcMode"
                         android:textColor="@color/white"
                         android:textSize="18sp" />
                 </LinearLayout>
@@ -127,9 +132,24 @@
                         android:orientation="horizontal">
 
                         <androidx.appcompat.widget.AppCompatImageView
-                            android:layout_width="15dp"
-                            android:layout_height="15dp"
+                            android:layout_width="12dp"
+                            android:layout_height="match_parent"
+                            android:visibility="gone"
                             android:src="@drawable/ic_low_speed_white" />
+
+
+                        <androidx.appcompat.widget.AppCompatTextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/quicksand_regular"
+                            android:maxLines="1"
+                            android:singleLine="true"
+                            android:textColor="@color/black"
+                            android:textSize="9sp"
+                            android:text="Fan Speed:"
+                            android:gravity="center"
+                            android:layout_gravity="center"
+                            />
 
                         <androidx.appcompat.widget.AppCompatTextView
                             android:layout_width="wrap_content"
@@ -140,6 +160,7 @@
                             android:fontFamily="@font/quicksand_regular"
                             android:maxLines="1"
                             android:singleLine="true"
+                            android:id="@+id/tvFanSpeed"
                             android:text="Speed low"
                             android:textColor="@color/white"
                             android:textSize="12sp" />
@@ -158,7 +179,21 @@
                         <androidx.appcompat.widget.AppCompatImageView
                             android:layout_width="15dp"
                             android:layout_height="15dp"
+                            android:visibility="gone"
                             android:src="@drawable/ic_direction_white" />
+
+                        <androidx.appcompat.widget.AppCompatTextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/quicksand_regular"
+                            android:maxLines="1"
+                            android:singleLine="true"
+                            android:textColor="@color/black"
+                            android:textSize="9sp"
+                            android:text="Direction:"
+                            android:gravity="center"
+                            android:layout_gravity="center"
+                            />
 
                         <androidx.appcompat.widget.AppCompatTextView
                             android:layout_width="wrap_content"
@@ -168,8 +203,9 @@
                             android:ellipsize="end"
                             android:fontFamily="@font/quicksand_regular"
                             android:maxLines="1"
+                            android:id="@+id/tvAcDirection"
                             android:singleLine="true"
-                            android:text="Direction middle"
+                            android:text="middle"
                             android:textColor="@color/white"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -187,7 +223,21 @@
                         <androidx.appcompat.widget.AppCompatImageView
                             android:layout_width="15dp"
                             android:layout_height="15dp"
+                            android:visibility="gone"
                             android:src="@drawable/ic_ac_fan_white" />
+
+                        <androidx.appcompat.widget.AppCompatTextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/quicksand_regular"
+                            android:maxLines="1"
+                            android:singleLine="true"
+                            android:textColor="@color/black"
+                            android:textSize="9sp"
+                            android:text="Swing:"
+                            android:gravity="center"
+                            android:layout_gravity="center"
+                            />
 
                         <androidx.appcompat.widget.AppCompatTextView
                             android:layout_width="wrap_content"
@@ -199,6 +249,7 @@
                             android:maxLines="1"
                             android:singleLine="true"
                             android:text="Swinging"
+                            android:id="@+id/tvAcSwing"
                             android:textColor="@color/white"
                             android:textSize="12sp" />
                     </LinearLayout>
