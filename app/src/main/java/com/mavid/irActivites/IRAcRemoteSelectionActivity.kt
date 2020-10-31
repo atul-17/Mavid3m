@@ -645,6 +645,7 @@ class IRAcRemoteSelectionActivity : AppCompatActivity() {
         irButtonListTimerTask = Timer()
         myHandler.sendEmptyMessageDelayed(LDAPI2_TIMOUT, 25000);
         showProgressBar()
+
         irButtonListTimerTask?.schedule(object : TimerTask() {
             override fun run() {
                 Log.d(TAG, "callingLdapi#2 every 5 secs")
@@ -698,13 +699,17 @@ class IRAcRemoteSelectionActivity : AppCompatActivity() {
 
     fun showProgressBar() {
         runOnUiThread {
-            progressDialog.show()
+            if (!progressDialog.isShowing) {
+                progressDialog.show()
+            }
         }
     }
 
     fun dismissLoader() {
         runOnUiThread {
-            progressDialog.dismiss()
+            if (progressDialog.isShowing) {
+                progressDialog.dismiss()
+            }
         }
     }
 
